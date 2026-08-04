@@ -1,0 +1,19 @@
+.{
+    .name = .oh_my_crypto,
+    .version = "0.0.1",
+    .fingerprint = 0x915f639e6896f245,
+    .minimum_zig_version = "0.16.0",
+    .dependencies = .{
+        .libqt6zig = .{
+            .url = "git+https://github.com/rcalixte/libqt6zig#6c9673ca8227a55aeeef0b9d011bc5c8d929da96",
+            .hash = "libqt6zig-6.8.2-OSXtXMYJtRvaPxY_BRTQx6E-IpeZajksjbG72NvPKPcs",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "LICENSE",
+        "README.md",
+    },
+}
