@@ -1,8 +1,9 @@
 const std = @import("std");
 
 const KeyError = error{
-    NotValidKey,
+    InvalidKey,
     NoKeyProvided,
+    InvalidRails,
 };
 
 pub fn Cipher(comptime Algorithm: type) type {
@@ -72,7 +73,7 @@ pub const Multiplicative = struct {
                 .key_inv = value,
             };
         }
-        return KeyError.NotValidKey;
+        return KeyError.InvalidKey;
     }
 
     pub fn encrypt(self: Multiplicative, plaintxt: []const u8, buf: []u8) !void {
@@ -123,7 +124,7 @@ pub const Affine = struct {
                 .key_inv = key_1_inv,
             };
         }
-        return KeyError.NotValidKey;
+        return KeyError.InvalidKey;
     }
 
     pub fn encrypt(self: Affine, plaintxt: []const u8, buf: []u8) !void {
@@ -213,9 +214,9 @@ pub const Autokey = struct {
 
             var key = 
                 if (key_idx < cleared_key.len)
-                    cleared_key[key_idx]
+                    full_key[key_idx]
                 else 
-                    cleared_key[key_idx - cleared_key.len];
+                    full_key[key_idx - cleared_key.len];
             key = 
                 if (key >= 'a' and key <= 'z')
                     key - 'a'
@@ -330,6 +331,128 @@ pub const Viegener = struct {
     }
 };
 
+pub const Zigzag = struct {
+    rails: u8,
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator, rails: u8) KeyError!Zigzag {
+        if (rails < 2) return KeyError.InvalidRails;
+
+        return .{ 
+            .rails = rails,
+            .allocator = allocator,
+        };
+    }
+
+    pub fn encrypt(self: Zigzag, plaintxt: []const u8, buf: []u8) !void {
+        var row_counts = try self.allocator.alloc(u8, self.rails);
+        defer self.allocator.free(row_counts);
+
+        @memset(row_counts, 0);
+
+        for (plaintxt, 0..) |c, i| {
+            if (!std.ascii.isAlphabetic(c))
+                continue;
+
+            row_counts[self.rail_at(@intCast(i))] += 1;
+        }
+
+        var offsets = try self.allocator.alloc(u8, self.rails);
+        defer self.allocator.free(offsets);
+
+        offsets[0] = 0;
+        for (1..self.rails) |r| {
+            offsets[r] = offsets[r - 1] + row_counts[r - 1];
+        }
+
+        for (plaintxt, 0..) |c, i| {
+            if (!std.ascii.isAlphabetic(c)) {
+                continue;
+            }
+
+            const rail = self.rail_at(@intCast(i));
+            buf[offsets[rail]] = c;
+            offsets[rail] += 1;
+        }
+
+        try self.restore_formatting(plaintxt, buf);
+    }
+
+    pub fn decrypt(self: Zigzag, ciphertxt: []const u8, buf: []u8) !void {
+        // 1. Extract only the raw cipher letters (which were packed rail-by-rail in `encrypt`)
+        const clean_cipher = try self.allocator.alloc(u8, ciphertxt.len);
+        defer self.allocator.free(clean_cipher);
+
+        var clean_len: usize = 0;
+        for (ciphertxt) |c| {
+            if (std.ascii.isAlphabetic(c)) {
+                clean_cipher[clean_len] = c;
+                clean_len += 1;
+            }
+        }
+
+        // 2. Count letters per rail using `i` (matching `encrypt`'s exact indexing!)
+        const row_counts = try self.allocator.alloc(usize, self.rails);
+        defer self.allocator.free(row_counts);
+        @memset(row_counts, 0);
+
+        for (ciphertxt, 0..) |c, i| {
+            if (std.ascii.isAlphabetic(c)) {
+                row_counts[self.rail_at(i)] += 1;
+            }
+        }
+
+        // 3. Rebuild rail partition offsets inside `clean_cipher`
+        const offsets = try self.allocator.alloc(usize, self.rails);
+        defer self.allocator.free(offsets);
+
+        offsets[0] = 0;
+        for (1..self.rails) |r| {
+            offsets[r] = offsets[r - 1] + row_counts[r - 1];
+        }
+
+        // 4. Reconstruct original text into output buffer
+        for (ciphertxt, 0..) |c, i| {
+            if (std.ascii.isAlphabetic(c)) {
+                const rail = self.rail_at(i);
+                buf[i] = clean_cipher[offsets[rail]];
+                offsets[rail] += 1;
+            } else {
+                buf[i] = c;
+            }
+        }
+    }
+
+    fn rail_at(self: Zigzag, i: usize) usize {
+        const mid = self.rails - 1;
+        const pos = i % (2 * mid);
+        return if (pos < mid) pos else 2 * mid - pos;
+    }
+
+    fn restore_formatting(
+        self: Zigzag,
+        plaintxt: []const u8,
+        ciphertxt: []u8,
+    ) !void {
+        const buf = try self.allocator.alloc(u8, plaintxt.len);
+        defer {
+            @memcpy(ciphertxt, buf);
+            self.allocator.free(buf);
+        }
+
+        var c_chr_count: usize = 0;
+        for (plaintxt, 0..) |c, i| {
+            if (std.ascii.isAlphabetic(c))
+            {
+                buf[i] = ciphertxt[c_chr_count];
+                c_chr_count += 1;
+            } else {
+                buf[i] = c;
+            }
+        }
+    }
+};
+
 fn clear_str(buf: []u8) []u8 {
     var write_idx: usize = 0;
     for (buf) |char| {
@@ -363,7 +486,7 @@ test "Multiplicative cipher" {
     try std.testing.expectEqualSlices(u8, "Hello World", &buf);
 
     const C_err = Cipher(Multiplicative).init(.{2});
-    try std.testing.expectError(KeyError.NotValidKey, C_err);
+    try std.testing.expectError(KeyError.InvalidKey, C_err);
 }
 
 test "Affine cipher" {
@@ -377,7 +500,7 @@ test "Affine cipher" {
     try std.testing.expectEqualSlices(u8, "Hello World", &buf);
 
     const C_err = Cipher(Multiplicative).init(.{2});
-    try std.testing.expectError(KeyError.NotValidKey, C_err);
+    try std.testing.expectError(KeyError.InvalidKey, C_err);
 }
 
 test "Autokey cipher" {
@@ -397,6 +520,18 @@ test "Viegener cipher" {
 
     try C.encrypt("Hello World", &buf);
     try std.testing.expectEqualSlices(u8, "Jcmcs Ymsch", &buf);
+
+    try C.decrypt(&buf, &buf);
+    try std.testing.expectEqualSlices(u8, "Hello World", &buf);
+}
+
+test "Zigzag cipher" {
+    const C = try Cipher(Zigzag).init(.{std.testing.allocator, 4});
+    const value = "Hello World";
+    var buf = [_]u8{0} ** value.len;
+
+    try C.encrypt(value, &buf);
+    try std.testing.expectEqualSlices(u8, "HWeol ordll", &buf);
 
     try C.decrypt(&buf, &buf);
     try std.testing.expectEqualSlices(u8, "Hello World", &buf);
