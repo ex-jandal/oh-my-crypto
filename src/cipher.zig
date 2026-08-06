@@ -224,11 +224,10 @@ pub const Autokey = struct {
 
             if (c >= 'a' and c <= 'z') {
                 buf[idx] = @mod((c - 'a') + key, 26) + 'a';
-                key_idx += 1;
             } else {
                 buf[idx] = @mod((c - 'A') + key, 26) + 'A';
-                key_idx += 1;
             }
+            key_idx += 1;
         }
     }
 
@@ -262,6 +261,70 @@ pub const Autokey = struct {
                 buf[idx] = dec_chr;
             }
             last_chr_buf = buf[idx];
+            key_idx += 1;
+        }
+    }
+};
+
+pub const Viegener = struct {
+    key: []const u8,
+
+    pub fn init(key: []const u8) KeyError!Viegener {
+        if (key.len == 0) 
+            return KeyError.NoKeyProvided;
+
+        return .{ 
+            .key = key,
+        };
+    }
+
+    pub fn encrypt(self: Viegener, plaintxt: []const u8, buf: []u8) !void {
+        var key_idx: u8 = 0;
+        for (plaintxt, 0..) |c, idx| {
+            if (!((c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))) {
+                buf[idx] = c;
+                continue;
+            }
+
+            var key_chr = self.key[key_idx % self.key.len];
+            key_chr = 
+                if (key_chr >= 'a' and key_chr <= 'z')
+                    key_chr - 'a'
+                else
+                    key_chr - 'A';
+
+            if (c >= 'a' and c <= 'z') {
+                buf[idx] = @mod((c - 'a') + key_chr, 26) + 'a';
+            } else {
+                buf[idx] = @mod((c - 'A') + key_chr, 26) + 'A';
+            }
+            key_idx += 1;
+        }
+    }
+
+    pub fn decrypt(self: Viegener, ciphertxt: []const u8, buf: []u8) !void {
+        var key_idx: u8 = 0;
+        for (ciphertxt, 0..) |c, idx| {
+            if (!((c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))) {
+                buf[idx] = c;
+                continue;
+            }
+
+            var key: i16 = self.key[key_idx % self.key.len];
+
+            key = 
+                if (key >= 'a' and key <= 'z')
+                    key - 'a'
+                else
+                    key - 'A';
+
+            if (c >= 'a' and c <= 'z') {
+                const dec_chr: u8 = @intCast(@mod(@as(i16, c - 'a') - key, 26) + 'a');
+                buf[idx] = dec_chr;
+            } else {
+                const dec_chr: u8 = @intCast(@mod(@as(i16, c - 'A') - key, 26) + 'A');
+                buf[idx] = dec_chr;
+            }
             key_idx += 1;
         }
     }
@@ -323,6 +386,17 @@ test "Autokey cipher" {
 
     try C.encrypt("Hello World", &buf);
     try std.testing.expectEqualSlices(u8, "Ulpwz Kkfco", &buf);
+
+    try C.decrypt(&buf, &buf);
+    try std.testing.expectEqualSlices(u8, "Hello World", &buf);
+}
+
+test "Viegener cipher" {
+    const C = try Cipher(Viegener).init(.{"Cybre"});
+    var buf = [_]u8{0} ** 11;
+
+    try C.encrypt("Hello World", &buf);
+    try std.testing.expectEqualSlices(u8, "Jcmcs Ymsch", &buf);
 
     try C.decrypt(&buf, &buf);
     try std.testing.expectEqualSlices(u8, "Hello World", &buf);
