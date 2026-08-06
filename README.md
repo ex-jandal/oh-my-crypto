@@ -1,6 +1,8 @@
 # Oh My Crypto
 
-<img style="margin: auto; width: 400px" src="./assests/screenshot.png" alt="Screenshot"/>
+<p align="center">
+  <img src="./assets/screenshot.png" width="500" alt="Screenshot"/>
+</p>
 
 A desktop GUI crypto utility written in **Zig 0.16.0** with **Qt 6** bindings via
 [`libqt6zig`](https://github.com/rcalixte/libqt6zig). Encrypt and decrypt text with
