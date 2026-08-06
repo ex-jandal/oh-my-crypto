@@ -41,7 +41,6 @@ pub fn build(b: *std.Build) !void {
         "qgridlayout",
         "qgraphicseffect",
         "qguiapplication",
-        "qgroupbox",
         "qlabel",
         "qlayout",
         "qlineedit",

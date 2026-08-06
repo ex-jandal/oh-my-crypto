@@ -50,8 +50,26 @@ QLabel#sectionLabel {
 
 QLabel#about {
     background: transparent;
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1.4;
+}
+
+QLabel#aboutLine {
+    background: transparent;
+    color: #bfc7d5;
+    font-size: 15px;
+    padding: 1px 0;
+}
+
+QLabel#versionBadge {
+    background-color: #1a1f29;
+    color: #8a94a6;
+    border: 1px solid #232a38;
+    border-radius: 10px;
+    padding: 2px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
 }
 
 QLabel#status {

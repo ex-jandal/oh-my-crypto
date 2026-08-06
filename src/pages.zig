@@ -10,7 +10,6 @@ const QLineEdit = qt6.QLineEdit;
 const QSpinBox = qt6.QSpinBox;
 const QComboBox = qt6.QComboBox;
 const QPlainTextEdit = qt6.QPlainTextEdit;
-const QGroupBox = qt6.QGroupBox;
 const QGridLayout = qt6.QGridLayout;
 const QMainWindow = qt6.QMainWindow;
 const QStackedWidget = qt6.QStackedWidget;
@@ -265,21 +264,52 @@ fn buildAbout() void {
     heading.SetObjectName("heading");
     v.AddWidget2(heading, 0);
 
-    const box = QGroupBox.New4("Oh My Crypto", page);
-    const bv = QBoxLayout.New2(top_to_bottom, box);
-    const text = QLabel.New5(
-        "A desktop GUI utility written in Zig 0.16.0 with Qt 6.\n\n" ++
-            "Supports six classical ciphers: Caesar, Multiplicative, Affine, " ++
-            "Autokey, Vigenere, and Zigzag (rail fence).\n\n" ++
-            "Educational tool only. These ciphers are trivially breakable with " ++
-            "modern frequency analysis — do not use them to protect real data.\n\n" ++
-            "MIT License. Qt is licensed separately (LGPL/GPL/commercial).",
-        page,
+    v.AddSpacing(4);
+
+    const p_intro = newPanel(page, v, "Oh My Crypto", 0);
+    const badge = QLabel.New5("v0.1.0", p_intro.panel);
+    badge.SetObjectName("versionBadge");
+    p_intro.header.AddWidget2(badge, 0);
+
+    const intro = QLabel.New5(
+        "A desktop GUI utility for classical ciphers, written in Zig 0.16.0 with Qt 6.",
+        p_intro.panel,
     );
-    text.SetObjectName("about");
-    text.SetWordWrap(true);
-    bv.AddWidget2(text, 0);
-    v.AddWidget2(box, 0);
+    intro.SetObjectName("about");
+    intro.SetWordWrap(true);
+    p_intro.v.AddWidget2(intro, 0);
+
+    const p_feat = newPanel(page, v, "Features", 0);
+    const bullets = [_][]const u8{
+        "•  Six classical ciphers: Caesar, Multiplicative, Affine, Autokey, Vigenere, Zigzag",
+        "•  Encrypt or decrypt typed text, or process .txt files",
+        "•  Copy results or move them back to the input in one click",
+        "•  Live char and word counts with a status line",
+    };
+    for (bullets) |b| {
+        const line = QLabel.New5(b, p_feat.panel);
+        line.SetObjectName("aboutLine");
+        line.SetWordWrap(true);
+        p_feat.v.AddWidget2(line, 0);
+    }
+
+    const p_warn = newPanel(page, v, "Educational tool", 0);
+    const warn = QLabel.New5(
+        "These ciphers are trivially breakable with modern frequency analysis — do not use them to protect real data.",
+        p_warn.panel,
+    );
+    warn.SetObjectName("aboutLine");
+    warn.SetWordWrap(true);
+    p_warn.v.AddWidget2(warn, 0);
+
+    const p_lic = newPanel(page, v, "License", 0);
+    const lic = QLabel.New5(
+        "MIT License.\nQt is licensed separately (LGPL/GPL/commercial).",
+        p_lic.panel,
+    );
+    lic.SetObjectName("aboutLine");
+    lic.SetWordWrap(true);
+    p_lic.v.AddWidget2(lic, 0);
 
     v.AddStretch();
 
