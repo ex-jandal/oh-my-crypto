@@ -36,7 +36,7 @@ seven classical ciphers:
 ## Requirements
 
 - Zig **0.16.0** (latest stable)
-- Qt **6.8+** development files (install per platform — see [GUIDE.md](GUIDE.md) section 1)
+- Qt **6.8+** development files.
 - C and C++ toolchain (`gcc` / `clang`, `libstdc++`)
 
 ## Build
@@ -64,12 +64,6 @@ src/
   root.zig         # library module root (shared cipher logic)
   cipher.zig       # cipher math module (encrypt/decrypt for all 7 ciphers)
 ```
-
-## Development
-
-See [GUIDE.md](GUIDE.md) for the full step-by-step build walkthrough: toolchain
-setup, Qt dependency installation, `libqt6zig` integration, cipher math, and GUI
-wiring.
 
 ## License
 
