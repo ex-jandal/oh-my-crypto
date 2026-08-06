@@ -11,6 +11,7 @@ const QSpinBox = qt6.QSpinBox;
 const QComboBox = qt6.QComboBox;
 const QPlainTextEdit = qt6.QPlainTextEdit;
 const QGroupBox = qt6.QGroupBox;
+const QGridLayout = qt6.QGridLayout;
 const QMainWindow = qt6.QMainWindow;
 const QStackedWidget = qt6.QStackedWidget;
 const QBoxLayout = qt6.QBoxLayout;
@@ -20,6 +21,7 @@ const QMessageBox = qt6.QMessageBox;
 const QTimer = qt6.QTimer;
 const QColor = qt6.QColor;
 const QGraphicsDropShadowEffect = qt6.QGraphicsDropShadowEffect;
+const QClipboard = qt6.QClipboard;
 
 const Cipher = ciphers.Cipher;
 const Caesar = ciphers.Caesar;
@@ -54,6 +56,10 @@ const Form = struct {
     input: QPlainTextEdit,
     output: QPlainTextEdit,
     status: QLabel,
+    input_count: QLabel,
+    output_count: QLabel,
+    copy_btn: QPushButton,
+    swap_btn: QPushButton,
 };
 
 var io: std.Io = undefined;
@@ -68,7 +74,6 @@ var file_path_label: QLabel = undefined;
 var title_effect: QGraphicsDropShadowEffect = undefined;
 var title_timer: QTimer = undefined;
 var glow_phase: f64 = 0;
-var glow_tick: u32 = 0;
 
 pub fn buildAll(g: std.mem.Allocator, app_io: std.Io, win: QMainWindow, s: QStackedWidget) void {
     gpa = g;
@@ -86,7 +91,7 @@ fn buildHome() void {
     const page = QWidget.New2();
     page.SetObjectName("pageHome");
     const v = QBoxLayout.New2(top_to_bottom, page);
-    v.SetContentsMargins(48, 48, 48, 48);
+    v.SetContentsMargins(48, 64, 48, 48);
     v.SetSpacing(16);
 
     v.AddStretch();
@@ -103,9 +108,9 @@ fn buildHome() void {
     title.SetGraphicsEffect(title_effect);
 
     title_timer = QTimer.New2(page);
-    title_timer.SetInterval(50);
+    title_timer.SetInterval(80);
     title_timer.OnTimeout(onTitleGlow);
-    title_timer.Start(50);
+    title_timer.Start(80);
 
     const subtitle = QLabel.New5(
         "Encrypt and decrypt text with six classical ciphers",
@@ -115,27 +120,53 @@ fn buildHome() void {
     subtitle.SetAlignment(align_center);
     v.AddWidget2(subtitle, 0);
 
-    v.AddSpacing(24);
+    const divider = QLabel.New5("", page);
+    divider.SetObjectName("divider");
+    divider.SetFixedWidth(96);
+    divider.SetFixedHeight(2);
+    v.AddWidget3(divider, 0, align_center);
 
-    const btn_text = QPushButton.New5("Encrypt / Decrypt Text", page);
-    btn_text.SetObjectName("cardBtn");
-    btn_text.SetFixedWidth(440);
-    btn_text.OnClicked(onHomeToText);
-    v.AddWidget3(btn_text, 0, align_center);
+    v.AddSpacing(36);
 
-    const btn_file = QPushButton.New5("Process Text File", page);
-    btn_file.SetObjectName("cardBtn");
-    btn_file.SetFixedWidth(440);
-    btn_file.OnClicked(onHomeToFile);
-    v.AddWidget3(btn_file, 0, align_center);
+    const chips_host = QWidget.New2();
+    chips_host.SetObjectName("chipsHost");
+    const chips = QGridLayout.New(chips_host);
+    chips.SetHorizontalSpacing(12);
+    chips.SetVerticalSpacing(12);
+    const ciphers_list = [_][]const u8{
+        "Caesar",
+        "Multiplicative",
+        "Affine",
+        "Autokey",
+        "Vigenere",
+        "Zigzag",
+    };
+    for (ciphers_list, 0..) |name, i| {
+        const row: i32 = @intCast(i / 3);
+        const col: i32 = @intCast(i % 3);
+        const chip = QLabel.New5(name, chips_host);
+        chip.SetObjectName("chip");
+        chip.SetAlignment(align_center);
+        chips.AddWidget2(chip, row, col);
+    }
+    v.AddWidget3(chips_host, 0, align_center);
 
-    const btn_about = QPushButton.New5("About", page);
-    btn_about.SetObjectName("cardBtn");
-    btn_about.SetFixedWidth(440);
-    btn_about.OnClicked(onHomeToAbout);
-    v.AddWidget3(btn_about, 0, align_center);
+    v.AddSpacing(12);
+
+    const note = QLabel.New5(
+        "Classical ciphers for learning cryptography\n(not for real data).",
+        page,
+    );
+    note.SetObjectName("note");
+    note.SetAlignment(align_center);
+    v.AddWidget2(note, 0);
 
     v.AddStretch();
+
+    const footer = QLabel.New5("Educational tool", page);
+    footer.SetObjectName("footer");
+    footer.SetAlignment(align_center);
+    v.AddWidget2(footer, 0);
 
     _ = stack.AddWidget(page);
 }
@@ -144,19 +175,12 @@ fn buildText() void {
     const page = QWidget.New2();
     page.SetObjectName("pageText");
     const v = QBoxLayout.New2(top_to_bottom, page);
-    v.SetContentsMargins(28, 20, 28, 20);
+    v.SetContentsMargins(28, 24, 28, 24);
     v.SetSpacing(12);
-
-    const top = QHBoxLayout.New(page);
-    const back = QPushButton.New5("← Home", page);
-    back.SetObjectName("backBtn");
-    back.OnClicked(onBackHome);
-    top.AddWidget2(back, 0);
 
     const heading = QLabel.New5("Encrypt / Decrypt Text", page);
     heading.SetObjectName("heading");
-    top.AddWidget2(heading, 1);
-    v.AddLayout2(top, 0);
+    v.AddWidget2(heading, 0);
 
     const form = buildCipherForm(page, v, true);
     text_form = form;
@@ -168,13 +192,14 @@ fn buildText() void {
     btns.AddWidget2(btn_enc, 1);
 
     const btn_dec = QPushButton.New5("Decrypt", page);
-    btn_dec.SetObjectName("primaryBtn");
+    btn_dec.SetObjectName("secondaryBtn");
     btn_dec.OnClicked(onTextDecrypt);
     btns.AddWidget2(btn_dec, 1);
 
     const btn_clear = QPushButton.New5("Clear", page);
+    btn_clear.SetObjectName("ghostBtn");
     btn_clear.OnClicked(onTextClear);
-    btns.AddWidget2(btn_clear, 1);
+    btns.AddWidget2(btn_clear, 0);
     v.AddLayout2(btns, 0);
 
     _ = stack.AddWidget(page);
@@ -184,19 +209,12 @@ fn buildFile() void {
     const page = QWidget.New2();
     page.SetObjectName("pageFile");
     const v = QBoxLayout.New2(top_to_bottom, page);
-    v.SetContentsMargins(28, 20, 28, 20);
+    v.SetContentsMargins(28, 24, 28, 24);
     v.SetSpacing(12);
-
-    const top = QHBoxLayout.New(page);
-    const back = QPushButton.New5("← Home", page);
-    back.SetObjectName("backBtn");
-    back.OnClicked(onBackHome);
-    top.AddWidget2(back, 0);
 
     const heading = QLabel.New5("Process Text File", page);
     heading.SetObjectName("heading");
-    top.AddWidget2(heading, 1);
-    v.AddLayout2(top, 0);
+    v.AddWidget2(heading, 0);
 
     const open_row = QHBoxLayout.New(page);
     const btn_open = QPushButton.New5("Open Text File...", page);
@@ -220,7 +238,7 @@ fn buildFile() void {
     btns.AddWidget2(btn_enc, 1);
 
     const btn_dec = QPushButton.New5("Decrypt", page);
-    btn_dec.SetObjectName("primaryBtn");
+    btn_dec.SetObjectName("secondaryBtn");
     btn_dec.OnClicked(onFileDecrypt);
     btns.AddWidget2(btn_dec, 1);
     v.AddLayout2(btns, 0);
@@ -230,10 +248,7 @@ fn buildFile() void {
     btn_save.SetObjectName("primaryBtn");
     btn_save.OnClicked(onFileSave);
     save_row.AddWidget2(btn_save, 0);
-
-    const hint = QLabel.New5("Save writes the processed output to a new file.", page);
-    hint.SetObjectName("status");
-    save_row.AddWidget2(hint, 1);
+    save_row.AddStretch();
     v.AddLayout2(save_row, 0);
 
     _ = stack.AddWidget(page);
@@ -243,19 +258,12 @@ fn buildAbout() void {
     const page = QWidget.New2();
     page.SetObjectName("pageAbout");
     const v = QBoxLayout.New2(top_to_bottom, page);
-    v.SetContentsMargins(28, 20, 28, 20);
+    v.SetContentsMargins(28, 24, 28, 24);
     v.SetSpacing(12);
-
-    const top = QHBoxLayout.New(page);
-    const back = QPushButton.New5("← Home", page);
-    back.SetObjectName("backBtn");
-    back.OnClicked(onBackHome);
-    top.AddWidget2(back, 0);
 
     const heading = QLabel.New5("About", page);
     heading.SetObjectName("heading");
-    top.AddWidget2(heading, 1);
-    v.AddLayout2(top, 0);
+    v.AddWidget2(heading, 0);
 
     const box = QGroupBox.New4("Oh My Crypto", page);
     const bv = QBoxLayout.New2(top_to_bottom, box);
@@ -278,65 +286,103 @@ fn buildAbout() void {
     _ = stack.AddWidget(page);
 }
 
-fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: bool) Form {
-    const grp_cipher = QGroupBox.New4("Cipher", page);
-    const gv = QBoxLayout.New2(top_to_bottom, grp_cipher);
-    gv.SetSpacing(10);
+const Panel = struct {
+    panel: QWidget,
+    v: QBoxLayout,
+    header: QHBoxLayout,
+};
 
-    const combo = QComboBox.New(page);
+fn newPanel(page: QWidget, parent_layout: QBoxLayout, title_text: []const u8, stretch: i32) Panel {
+    const panel = QWidget.New(page);
+    panel.SetObjectName("panel");
+    const pv = QBoxLayout.New2(top_to_bottom, panel);
+    pv.SetContentsMargins(14, 12, 14, 10);
+    pv.SetSpacing(8);
+
+    const header = QHBoxLayout.New(panel);
+    const title = QLabel.New5(title_text, panel);
+    title.SetObjectName("panelTitle");
+    header.AddWidget2(title, 0);
+    header.AddStretch();
+
+    pv.AddLayout2(header, 0);
+    parent_layout.AddWidget2(panel, stretch);
+    return .{ .panel = panel, .v = pv, .header = header };
+}
+
+fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: bool) Form {
+    const p_cipher = newPanel(page, parent_layout, "Cipher & Key", 0);
+
+    const combo = QComboBox.New(p_cipher.panel);
     combo.AddItem("Caesar");
     combo.AddItem("Multiplicative");
     combo.AddItem("Affine");
     combo.AddItem("Autokey");
     combo.AddItem("Vigenere");
     combo.AddItem("Zigzag");
-    gv.AddWidget2(combo, 0);
+    p_cipher.v.AddWidget2(combo, 0);
 
-    const key_row = QHBoxLayout.New(page);
+    const key_row = QHBoxLayout.New(p_cipher.panel);
 
-    const keyword_edit = QLineEdit.New(page);
+    const keyword_edit = QLineEdit.New(p_cipher.panel);
     keyword_edit.SetPlaceholderText("Keyword (letters only)");
     keyword_edit.SetVisible(false);
     key_row.AddWidget2(keyword_edit, 3);
 
-    const num1_label = QLabel.New5("Shift", page);
+    const num1_label = QLabel.New5("Shift", p_cipher.panel);
     num1_label.SetObjectName("keyLabel");
     key_row.AddWidget2(num1_label, 0);
 
-    const num1 = QSpinBox.New(page);
+    const num1 = QSpinBox.New(p_cipher.panel);
     num1.SetRange(0, 25);
     num1.SetValue(3);
+    num1.SetFixedHeight(32);
     key_row.AddWidget2(num1, 1);
 
-    const num2_label = QLabel.New5("b", page);
+    const num2_label = QLabel.New5("b", p_cipher.panel);
     num2_label.SetObjectName("keyLabel");
     num2_label.SetVisible(false);
     key_row.AddWidget2(num2_label, 0);
 
-    const num2 = QSpinBox.New(page);
+    const num2 = QSpinBox.New(p_cipher.panel);
     num2.SetRange(0, 25);
     num2.SetValue(9);
     num2_label.SetVisible(false);
+    num2.SetFixedHeight(32);
     key_row.AddWidget2(num2, 1);
 
-    gv.AddLayout2(key_row, 0);
-    parent_layout.AddWidget2(grp_cipher, 0);
+    p_cipher.v.AddLayout2(key_row, 0);
 
-    const grp_input = QGroupBox.New4("Input", page);
-    const iv = QBoxLayout.New2(top_to_bottom, grp_input);
-    const input = QPlainTextEdit.New(page);
+    const p_in = newPanel(page, parent_layout, "Input", 1);
+    const input = QPlainTextEdit.New(p_in.panel);
     input.SetPlaceholderText("Type or paste text here...");
     input.SetReadOnly(!editable_input);
-    iv.AddWidget2(input, 1);
-    parent_layout.AddWidget2(grp_input, 1);
+    p_in.v.AddWidget2(input, 1);
 
-    const grp_output = QGroupBox.New4("Output", page);
-    const ov = QBoxLayout.New2(top_to_bottom, grp_output);
-    const output = QPlainTextEdit.New(page);
+    const input_count = QLabel.New5("0 characters", p_in.panel);
+    input_count.SetObjectName("countLabel");
+    p_in.v.AddWidget2(input_count, 0);
+
+    const p_out = newPanel(page, parent_layout, "Output", 1);
+    const output = QPlainTextEdit.New(p_out.panel);
+    output.SetObjectName("outputPane");
     output.SetReadOnly(true);
     output.SetPlaceholderText("Result appears here...");
-    ov.AddWidget2(output, 1);
-    parent_layout.AddWidget2(grp_output, 1);
+    p_out.v.AddWidget2(output, 1);
+
+    const copy_btn = QPushButton.New5("Copy", p_out.panel);
+    copy_btn.SetObjectName("miniBtn");
+    copy_btn.OnClicked(onCopy);
+    p_out.header.AddWidget2(copy_btn, 0);
+
+    const swap_btn = QPushButton.New5("To Input", p_out.panel);
+    swap_btn.SetObjectName("miniBtn");
+    swap_btn.OnClicked(onSwap);
+    p_out.header.AddWidget2(swap_btn, 0);
+
+    const output_count = QLabel.New5("0 characters", p_out.panel);
+    output_count.SetObjectName("countLabel");
+    p_out.v.AddWidget2(output_count, 0);
 
     const status = QLabel.New5("", page);
     status.SetObjectName("status");
@@ -352,6 +398,10 @@ fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: boo
         .input = input,
         .output = output,
         .status = status,
+        .input_count = input_count,
+        .output_count = output_count,
+        .copy_btn = copy_btn,
+        .swap_btn = swap_btn,
     };
     updateCipherFields(form);
     combo.OnCurrentIndexChanged(onCipherChanged);
@@ -410,40 +460,9 @@ fn updateCipherFields(f: Form) void {
 
 fn onTitleGlow(self: QTimer) callconv(.c) void {
     _ = self;
-    glow_phase += 0.35;
+    glow_phase += 0.18;
     const pulse = 0.5 + 0.5 * @sin(glow_phase);
-    title_effect.SetBlurRadius(8 + 14 * pulse);
-    glow_tick += 1;
-    if (glow_tick % 15 == 0) {
-        const colors = [_][3]i32{
-            .{ 0xe6, 0xb4, 0x50 },
-            .{ 0xff, 0x8f, 0x40 },
-            .{ 0x59, 0xc2, 0xff },
-            .{ 0xaa, 0xd9, 0x4c },
-        };
-        const c = colors[(glow_tick / 15) % colors.len];
-        title_effect.SetColor(QColor.New5(c[0], c[1], c[2]));
-    }
-}
-
-fn onHomeToText(self: QPushButton) callconv(.c) void {
-    _ = self;
-    stack.SetCurrentIndex(@intFromEnum(PageIndex.text));
-}
-
-fn onHomeToFile(self: QPushButton) callconv(.c) void {
-    _ = self;
-    stack.SetCurrentIndex(@intFromEnum(PageIndex.file));
-}
-
-fn onHomeToAbout(self: QPushButton) callconv(.c) void {
-    _ = self;
-    stack.SetCurrentIndex(@intFromEnum(PageIndex.about));
-}
-
-fn onBackHome(self: QPushButton) callconv(.c) void {
-    _ = self;
-    stack.SetCurrentIndex(@intFromEnum(PageIndex.home));
+    title_effect.SetBlurRadius(8 + 8 * pulse);
 }
 
 fn onTextEncrypt(self: QPushButton) callconv(.c) void {
@@ -460,6 +479,7 @@ fn onTextClear(self: QPushButton) callconv(.c) void {
     _ = self;
     text_form.input.SetPlainText("");
     text_form.output.SetPlainText("");
+    updateFormCounts(&text_form);
     setStatus(&text_form, true, "Cleared.");
 }
 
@@ -485,6 +505,7 @@ fn onFileOpen(self: QPushButton) callconv(.c) void {
     file_form.input.SetPlainText(content);
     file_form.output.SetPlainText("");
     file_path_label.SetText(path);
+    updateFormCounts(&file_form);
     setStatus(&file_form, true, "File loaded.");
 }
 
@@ -536,6 +557,7 @@ fn execute(f: *Form, mode: Mode) void {
     defer gpa.free(out);
 
     f.output.SetPlainText(out);
+    updateFormCounts(f);
     setStatus(f, true, if (mode == .encrypt) "Encrypted." else "Decrypted.");
 }
 
@@ -596,6 +618,63 @@ fn doCipher(f: *Form, text: []const u8, mode: Mode) ![]u8 {
         else => unreachable,
     }
     return buf;
+}
+
+fn onCopy(self: QPushButton) callconv(.c) void {
+    const f = if (self.ptr == text_form.copy_btn.ptr) &text_form else &file_form;
+    const out = f.output.ToPlainText(gpa);
+    defer gpa.free(out);
+    if (out.len == 0) {
+        setStatus(f, false, "Nothing to copy. Run encrypt or decrypt first.");
+        return;
+    }
+    const clip = QApplication.Clipboard();
+    clip.SetText(out);
+    setStatus(f, true, "Output copied to clipboard.");
+}
+
+fn onSwap(self: QPushButton) callconv(.c) void {
+    const f = if (self.ptr == text_form.swap_btn.ptr) &text_form else &file_form;
+    const out = f.output.ToPlainText(gpa);
+    defer gpa.free(out);
+    if (out.len == 0) {
+        setStatus(f, false, "Nothing to move. Run encrypt or decrypt first.");
+        return;
+    }
+    f.input.SetPlainText(out);
+    f.output.SetPlainText("");
+    updateFormCounts(f);
+    setStatus(f, true, "Result moved to input.");
+}
+
+fn countWords(s: []const u8) usize {
+    var n: usize = 0;
+    var in_word = false;
+    for (s) |c| {
+        const ws = c == ' ' or c == '\t' or c == '\n' or c == '\r';
+        if (ws) {
+            in_word = false;
+        } else if (!in_word) {
+            n += 1;
+            in_word = true;
+        }
+    }
+    return n;
+}
+
+fn updateFormCounts(f: *Form) void {
+    const in_text = f.input.ToPlainText(gpa);
+    defer gpa.free(in_text);
+    const out_text = f.output.ToPlainText(gpa);
+    defer gpa.free(out_text);
+
+    var in_buf: [96]u8 = undefined;
+    const in_s = std.fmt.bufPrint(&in_buf, "{d} characters · {d} words", .{ in_text.len, countWords(in_text) }) catch "…";
+    f.input_count.SetText(in_s);
+
+    var out_buf: [96]u8 = undefined;
+    const out_s = std.fmt.bufPrint(&out_buf, "{d} characters", .{out_text.len}) catch "…";
+    f.output_count.SetText(out_s);
 }
 
 fn setStatus(f: *Form, ok: bool, msg: []const u8) void {
