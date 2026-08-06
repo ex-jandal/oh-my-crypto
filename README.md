@@ -23,7 +23,8 @@ six classical ciphers:
 ## Features
 
 - Qt 6 native GUI (widgets) — no web view, no Tkinter
-- Home menu navigating stacked pages: Text, File, About
+- Sidebar navigation across four pages: Home, Text, File, About
+- **Home page** — hero title with a subtle glowing accent, quick action cards, and a muted educational note
 - **Text page** — encrypt/decrypt user-typed text with per-cipher key inputs:
   - shift spinbox 0–25 (Caesar)
   - key spinbox 0–25, auto-validated against `gcd(k, 26) = 1` (multiplicative)
@@ -67,7 +68,7 @@ a cold cache; subsequent builds take seconds.
 build.zig          # build script: Qt module wiring + artifact links
 build.zig.zon      # dependency manifest (libqt6zig pinned)
 src/
-  main.zig         # Qt application entry point + main window
+  main.zig         # Qt application entry point, main window + sidebar navigation
   root.zig         # library module root (exports shared cipher logic)
   cipher.zig       # cipher math module (encrypt/decrypt for all 6 ciphers)
   pages.zig        # GUI pages, widget state, and signal callbacks
