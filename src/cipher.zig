@@ -205,7 +205,7 @@ pub const Autokey = struct {
 
         const cleared_key = clear_str(full_key);
 
-        var key_idx: u8 = 0;
+        var key_idx: usize = 0;
         for (plaintxt, 0..) |c, idx| {
             if (!((c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))) {
                 buf[idx] = c;
@@ -235,7 +235,7 @@ pub const Autokey = struct {
     pub fn decrypt(self: Autokey, ciphertxt: []const u8, buf: []u8) !void {
         var last_chr_buf: u8 = undefined;
 
-        var key_idx: u8 = 0;
+        var key_idx: usize = 0;
         for (ciphertxt, 0..) |c, idx| {
             if (!((c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))) {
                 buf[idx] = c;
@@ -280,7 +280,7 @@ pub const Viegener = struct {
     }
 
     pub fn encrypt(self: Viegener, plaintxt: []const u8, buf: []u8) !void {
-        var key_idx: u8 = 0;
+        var key_idx: usize = 0;
         for (plaintxt, 0..) |c, idx| {
             if (!((c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))) {
                 buf[idx] = c;
@@ -304,7 +304,7 @@ pub const Viegener = struct {
     }
 
     pub fn decrypt(self: Viegener, ciphertxt: []const u8, buf: []u8) !void {
-        var key_idx: u8 = 0;
+        var key_idx: usize = 0;
         for (ciphertxt, 0..) |c, idx| {
             if (!((c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))) {
                 buf[idx] = c;
@@ -345,7 +345,7 @@ pub const Zigzag = struct {
     }
 
     pub fn encrypt(self: Zigzag, plaintxt: []const u8, buf: []u8) !void {
-        var row_counts = try self.allocator.alloc(u8, self.rails);
+        var row_counts = try self.allocator.alloc(usize, self.rails);
         defer self.allocator.free(row_counts);
 
         @memset(row_counts, 0);
@@ -354,10 +354,10 @@ pub const Zigzag = struct {
             if (!std.ascii.isAlphabetic(c))
                 continue;
 
-            row_counts[self.rail_at(@intCast(i))] += 1;
+            row_counts[self.rail_at(i)] += 1;
         }
 
-        var offsets = try self.allocator.alloc(u8, self.rails);
+        var offsets = try self.allocator.alloc(usize, self.rails);
         defer self.allocator.free(offsets);
 
         offsets[0] = 0;
@@ -370,7 +370,7 @@ pub const Zigzag = struct {
                 continue;
             }
 
-            const rail = self.rail_at(@intCast(i));
+            const rail = self.rail_at(i);
             buf[offsets[rail]] = c;
             offsets[rail] += 1;
         }
