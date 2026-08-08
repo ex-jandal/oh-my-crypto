@@ -29,6 +29,51 @@ var nav_text: QPushButton = undefined;
 var nav_file: QPushButton = undefined;
 var nav_about: QPushButton = undefined;
 
+pub fn main(init: std.process.Init) !void {
+    const argv = try qt6.init(init.gpa, init.minimal.args);
+    defer qt6.deinit(init.gpa, argv);
+    var argc: i32 = @intCast(argv.len);
+
+    const qapp = QApplication.New(init.arena.allocator(), &argc, argv);
+    defer qapp.Delete();
+
+    qapp.SetStyleSheet(style.qss);
+
+    const win = QMainWindow.New2();
+    defer win.Delete();
+    win.SetWindowTitle("Oh My Crypto");
+    win.SetMinimumSize2(820, 600);
+    win.Resize(1040, 700);
+
+    const root = QWidget.New2();
+    const root_box = QHBoxLayout.New(root);
+    root_box.SetContentsMargins(0, 0, 0, 0);
+    root_box.SetSpacing(0);
+
+    const sidebar = QWidget.New2();
+    sidebar.SetObjectName("sidebar");
+    sidebar.SetFixedWidth(200);
+    const sv = QBoxLayout.New2(top_to_bottom, sidebar);
+    sv.SetContentsMargins(16, 28, 16, 20);
+    sv.SetSpacing(4);
+    buildSidebar(sidebar, sv);
+    root_box.AddWidget2(sidebar, 0);
+
+    stack = QStackedWidget.New2();
+    root_box.AddWidget2(stack, 1);
+
+    win.SetCentralWidget(root);
+
+    pages.buildAll(init.gpa, init.io, win, stack);
+    selectNav(&nav_home);
+
+    win.Show();
+
+    _ = QApplication.Exec();
+
+    try std.Io.File.stdout().writeStreamingAll(init.io, "OK!\n");
+}
+
 fn newNav(parent: QWidget, text: []const u8) QPushButton {
     const b = QPushButton.New5(text, parent);
     b.SetObjectName("navBtn");
@@ -102,47 +147,3 @@ fn buildSidebar(parent: QWidget, v: QBoxLayout) void {
     v.AddWidget2(version, 0);
 }
 
-pub fn main(init: std.process.Init) !void {
-    const argv = try qt6.init(init.gpa, init.minimal.args);
-    defer qt6.deinit(init.gpa, argv);
-    var argc: i32 = @intCast(argv.len);
-
-    const qapp = QApplication.New(init.arena.allocator(), &argc, argv);
-    defer qapp.Delete();
-
-    qapp.SetStyleSheet(style.qss);
-
-    const win = QMainWindow.New2();
-    defer win.Delete();
-    win.SetWindowTitle("Oh My Crypto");
-    win.SetMinimumSize2(820, 600);
-    win.Resize(1040, 700);
-
-    const root = QWidget.New2();
-    const root_box = QHBoxLayout.New(root);
-    root_box.SetContentsMargins(0, 0, 0, 0);
-    root_box.SetSpacing(0);
-
-    const sidebar = QWidget.New2();
-    sidebar.SetObjectName("sidebar");
-    sidebar.SetFixedWidth(200);
-    const sv = QBoxLayout.New2(top_to_bottom, sidebar);
-    sv.SetContentsMargins(16, 28, 16, 20);
-    sv.SetSpacing(4);
-    buildSidebar(sidebar, sv);
-    root_box.AddWidget2(sidebar, 0);
-
-    stack = QStackedWidget.New2();
-    root_box.AddWidget2(stack, 1);
-
-    win.SetCentralWidget(root);
-
-    pages.buildAll(init.gpa, init.io, win, stack);
-    selectNav(&nav_home);
-
-    win.Show();
-
-    _ = QApplication.Exec();
-
-    try std.Io.File.stdout().writeStreamingAll(init.io, "OK!\n");
-}
