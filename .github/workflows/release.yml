@@ -84,6 +84,8 @@ jobs:
           echo "$QT/lib" | sudo tee /etc/ld.so.conf.d/qt6.conf
           sudo ldconfig
 
+          echo "QT_PLUGIN_DIR=$QT/plugins" >> "$GITHUB_ENV"
+
       - name: Install Qt (Windows)
         if: runner.os == 'Windows'
         run: |
@@ -98,11 +100,17 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $qtBin = "C:/Qt/6.8.3/llvm-mingw_64/bin"
-          & "$qtBin/windeployqt.exe" zig-out/bin/omc.exe --release --no-translations
+          $qt = "C:/Qt/6.8.3/llvm-mingw_64"
           $pkg = "omc-$env:TAG-$env:ARCH"
-          New-Item -ItemType Directory -Path $pkg | Out-Null
-          Move-Item zig-out/bin/* $pkg/
+          New-Item -ItemType Directory -Force -Path $pkg | Out-Null
+
+          Copy-Item zig-out/bin/omc.exe $pkg/
+          Copy-Item "$qt/bin/Qt6*.dll" $pkg/
+          Get-ChildItem "$qt/bin" -Filter 'lib*.dll' -ErrorAction SilentlyContinue | Copy-Item -Destination $pkg
+          if (Test-Path "$qt/plugins") {
+            Copy-Item "$qt/plugins" $pkg -Recurse
+          }
+
           Compress-Archive -Path "$pkg/*" -DestinationPath "$pkg.zip"
 
       - name: Package (Linux)
