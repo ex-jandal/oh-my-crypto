@@ -65,6 +65,7 @@ if [[ -z "${plugin_dir:-}" ]]; then
 fi
 
 cp -r "$plugin_dir"/* "$pkg/plugins/"
+rm -f "$pkg"/plugins/sqldrivers/libqsqlmimer.so
 
 qt_lib_dir=""
 if [[ -n "${QT_PLUGIN_DIR:-}" ]]; then
