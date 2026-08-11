@@ -52,9 +52,10 @@ pub const Caesar = struct {
     pub fn decrypt(self: Caesar, ciphertxt: []const u8, buf: []u8) !void {
         for (ciphertxt, 0..) |c, idx| {
             if (c >= 'a' and c <= 'z') {
-                buf[idx] = @mod((c - 'a') - self.shift, 26) + 'a';
+                // the '+ 26' is a workaround for the overflow problemoo
+                buf[idx] = @mod((c - 'a') + 26 - self.shift, 26) + 'a';
             } else if (c >= 'A' and c <= 'Z') {
-                buf[idx] = @mod((c - 'A') - self.shift, 26) + 'A';
+                buf[idx] = @mod((c - 'A') + 26 - self.shift, 26) + 'A';
             } else {
                 buf[idx] = c;
             }
@@ -244,7 +245,7 @@ pub const Autokey = struct {
 
             var key = 
                 if (key_idx < self.key.len)
-                    @as(i16, self.key[idx])
+                    @as(i16, self.key[key_idx])
                 else
                     @as(i16, last_chr_buf);
 
