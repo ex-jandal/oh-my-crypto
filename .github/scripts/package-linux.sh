@@ -10,6 +10,7 @@ collect_deps() {
   local out_dir="$1"
   shift
   local -a queue=("$@")
+  local -a missing=()
 
   while ((${#queue[@]})); do
     local cur="${queue[0]}"
@@ -24,8 +25,8 @@ collect_deps() {
         lib="${BASH_REMATCH[1]}"
         path="${BASH_REMATCH[2]}"
       elif [[ "$line" == *'not found'* ]]; then
-        echo "ERROR: unresolved dependency in $cur: $line" >&2
-        exit 1
+        missing+=("$line")
+        continue
       else
         continue
       fi
@@ -42,6 +43,12 @@ collect_deps() {
       fi
     done <<<"$deps"
   done
+
+  if ((${#missing[@]})); then
+    echo "ERROR: unresolved dependencies:" >&2
+    printf '  %s\n' "${missing[@]}" >&2
+    exit 1
+  fi
 }
 
 rm -rf "$pkg"
