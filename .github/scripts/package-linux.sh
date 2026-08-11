@@ -52,7 +52,7 @@ collect_deps() {
 }
 
 rm -rf "$pkg"
-mkdir -p "$pkg/lib" "$pkg/plugins/platforms"
+mkdir -p "$pkg/lib" "$pkg/plugins"
 cp "$bin" "$pkg/omc"
 
 if [[ -n "${QT_PLUGIN_DIR:-}" ]]; then
@@ -64,7 +64,7 @@ if [[ -z "${plugin_dir:-}" ]]; then
   plugin_dir="/usr/lib/x86_64-linux-gnu/qt6/plugins"
 fi
 
-cp "$plugin_dir"/platforms/*.so "$pkg/plugins/platforms/"
+cp -r "$plugin_dir"/* "$pkg/plugins/"
 
 qt_lib_dir=""
 if [[ -n "${QT_PLUGIN_DIR:-}" ]]; then
@@ -74,9 +74,9 @@ if [[ -d "$qt_lib_dir" ]]; then
   cp -L "$qt_lib_dir"/libQt6*.so* "$pkg/lib/"
 fi
 
-collect_deps "$pkg/lib" "$pkg/omc" "$pkg"/plugins/platforms/*.so "$pkg"/lib/*
+collect_deps "$pkg/lib" "$pkg/omc" "$pkg"/plugins/*/*.so "$pkg"/lib/*
 
 patchelf --set-rpath '$ORIGIN/lib' "$pkg/omc"
-patchelf --set-rpath '$ORIGIN/../../lib' "$pkg"/plugins/platforms/*.so
+patchelf --set-rpath '$ORIGIN/../../lib' "$pkg"/plugins/*/*.so
 
 tar czf "$pkg.tar.gz" "$pkg"
