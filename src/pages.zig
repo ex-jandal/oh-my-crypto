@@ -20,7 +20,6 @@ const QMessageBox = qt6.QMessageBox;
 const QTimer = qt6.QTimer;
 const QColor = qt6.QColor;
 const QGraphicsDropShadowEffect = qt6.QGraphicsDropShadowEffect;
-const QClipboard = qt6.QClipboard;
 
 const Cipher = ciphers.Cipher;
 const Caesar = ciphers.Caesar;
@@ -31,9 +30,9 @@ const Viegener = ciphers.Viegener;
 const Zigzag = ciphers.Zigzag;
 
 const align_center: i32 = 132;
-const top_to_bottom: i32 = 2;
+pub const top_to_bottom: i32 = 2;
 
-const PageIndex = enum(i32) {
+pub const PageIndex = enum(i32) {
     home = 0,
     text = 1,
     file = 2,
@@ -369,7 +368,7 @@ fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: boo
     num1.SetFixedHeight(32);
     key_row.AddWidget2(num1, 1);
 
-    const num2_label = QLabel.New5("b", p_cipher.panel);
+    const num2_label = QLabel.New5("key 2", p_cipher.panel);
     num2_label.SetObjectName("keyLabel");
     num2_label.SetVisible(false);
     key_row.AddWidget2(num2_label, 0);

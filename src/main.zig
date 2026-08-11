@@ -3,6 +3,9 @@ const qt6 = @import("libqt6zig");
 const pages = @import("pages.zig");
 const style = @import("style.zig");
 
+const PageIndex = pages.PageIndex;
+const top_to_bottom: i32 = pages.top_to_bottom;
+
 const QApplication = qt6.QApplication;
 const QWidget = qt6.QWidget;
 const QMainWindow = qt6.QMainWindow;
@@ -11,16 +14,6 @@ const QPushButton = qt6.QPushButton;
 const QLabel = qt6.QLabel;
 const QBoxLayout = qt6.QBoxLayout;
 const QHBoxLayout = qt6.QHBoxLayout;
-
-const left_to_right: i32 = 0;
-const top_to_bottom: i32 = 2;
-
-const PageIndex = enum(i32) {
-    home = 0,
-    text = 1,
-    file = 2,
-    about = 3,
-};
 
 var stack: QStackedWidget = undefined;
 
