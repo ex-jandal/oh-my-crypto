@@ -64,6 +64,7 @@ pub fn build(b: *std.Build) !void {
         "qtimer",
         "qvariant",
         "qwidget",
+        "qfont",
         "qfontdatabase",
     };
 

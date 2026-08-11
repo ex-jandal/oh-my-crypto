@@ -8,6 +8,7 @@ const QApplication = qt6.QApplication;
 const QWidget = qt6.QWidget;
 const QMainWindow = qt6.QMainWindow;
 const QHBoxLayout = qt6.QHBoxLayout;
+const QFont = qt6.QFont;
 const QFontDatabase = qt6.QFontDatabase;
 
 pub fn main(init: std.process.Init) !void {
@@ -18,10 +19,11 @@ pub fn main(init: std.process.Init) !void {
     const qapp = QApplication.New(init.arena.allocator(), &argc, argv);
     defer qapp.Delete();
 
-    theme.init(init.gpa, qapp);
-
     _ = QFontDatabase.AddApplicationFontFromData(@constCast(fonts.rubik));
     _ = QFontDatabase.AddApplicationFontFromData(@constCast(fonts.rubik_italic));
+    QApplication.SetFont(QFont.New6("Rubik", 12));
+
+    theme.init(init.gpa, qapp);
 
     const win = QMainWindow.New2();
     defer win.Delete();
