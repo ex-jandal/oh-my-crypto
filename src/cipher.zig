@@ -141,7 +141,7 @@ pub const Affine = struct {
 
     pub fn decrypt(self: Affine, ciphertxt: []const u8, buf: []u8) !void {
         for (ciphertxt, 0..) |c, idx| {
-            if (!((c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))) {
+            if (!std.ascii.isAlphabetic(c)) {
                 buf[idx] = c;
                 continue;
             }
@@ -207,7 +207,7 @@ pub const Autokey = struct {
 
         var key_idx: usize = 0;
         for (plaintxt, 0..) |c, idx| {
-            if (!((c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))) {
+            if (!std.ascii.isAlphabetic(c)) {
                 buf[idx] = c;
                 continue;
             }
@@ -237,7 +237,7 @@ pub const Autokey = struct {
 
         var key_idx: usize = 0;
         for (ciphertxt, 0..) |c, idx| {
-            if (!((c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))) {
+            if (!std.ascii.isAlphabetic(c)) {
                 buf[idx] = c;
                 continue;
             }
@@ -282,7 +282,7 @@ pub const Viegener = struct {
     pub fn encrypt(self: Viegener, plaintxt: []const u8, buf: []u8) !void {
         var key_idx: usize = 0;
         for (plaintxt, 0..) |c, idx| {
-            if (!((c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))) {
+            if (!std.ascii.isAlphabetic(c)) {
                 buf[idx] = c;
                 continue;
             }
@@ -306,7 +306,7 @@ pub const Viegener = struct {
     pub fn decrypt(self: Viegener, ciphertxt: []const u8, buf: []u8) !void {
         var key_idx: usize = 0;
         for (ciphertxt, 0..) |c, idx| {
-            if (!((c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z'))) {
+            if (!std.ascii.isAlphabetic(c)) {
                 buf[idx] = c;
                 continue;
             }
@@ -379,7 +379,6 @@ pub const Zigzag = struct {
     }
 
     pub fn decrypt(self: Zigzag, ciphertxt: []const u8, buf: []u8) !void {
-        // 1. Extract only the raw cipher letters (which were packed rail-by-rail in `encrypt`)
         const clean_cipher = try self.allocator.alloc(u8, ciphertxt.len);
         defer self.allocator.free(clean_cipher);
 
@@ -391,7 +390,6 @@ pub const Zigzag = struct {
             }
         }
 
-        // 2. Count letters per rail using `i` (matching `encrypt`'s exact indexing!)
         const row_counts = try self.allocator.alloc(usize, self.rails);
         defer self.allocator.free(row_counts);
         @memset(row_counts, 0);
@@ -402,7 +400,6 @@ pub const Zigzag = struct {
             }
         }
 
-        // 3. Rebuild rail partition offsets inside `clean_cipher`
         const offsets = try self.allocator.alloc(usize, self.rails);
         defer self.allocator.free(offsets);
 
@@ -411,15 +408,15 @@ pub const Zigzag = struct {
             offsets[r] = offsets[r - 1] + row_counts[r - 1];
         }
 
-        // 4. Reconstruct original text into output buffer
         for (ciphertxt, 0..) |c, i| {
-            if (std.ascii.isAlphabetic(c)) {
-                const rail = self.rail_at(i);
-                buf[i] = clean_cipher[offsets[rail]];
-                offsets[rail] += 1;
-            } else {
+            if (!std.ascii.isAlphabetic(c)) {
                 buf[i] = c;
+                continue;
             }
+
+            const rail = self.rail_at(i);
+            buf[i] = clean_cipher[offsets[rail]];
+            offsets[rail] += 1;
         }
     }
 
