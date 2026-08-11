@@ -201,7 +201,7 @@ fn buildText() void {
     btns.AddWidget2(btn_clear, 0);
     v.AddLayout2(btns, 0);
 
-    _ = stack.AddWidget(wrapInScroll(page));
+    _ = stack.AddWidget(page);
 }
 
 fn buildFile() void {
@@ -250,15 +250,7 @@ fn buildFile() void {
     save_row.AddStretch();
     v.AddLayout2(save_row, 0);
 
-    _ = stack.AddWidget(wrapInScroll(page));
-}
-
-fn wrapInScroll(page: QWidget) QScrollArea {
-    const sc = QScrollArea.New2();
-    sc.SetObjectName("scrollArea");
-    sc.SetWidgetResizable(true);
-    sc.SetWidget(page);
-    return sc;
+    _ = stack.AddWidget(page);
 }
 
 fn buildAbout() void {
@@ -391,7 +383,18 @@ fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: boo
 
     p_cipher.v.AddLayout2(key_row, 0);
 
-    const p_in = newPanel(page, parent_layout, "Input", 1);
+    const scroll_host = QScrollArea.New2();
+    scroll_host.SetObjectName("scrollArea");
+    scroll_host.SetWidgetResizable(true);
+
+    const scroll_widget = QWidget.New2();
+    scroll_widget.SetObjectName("scrollHost");
+    const scroll_layout = QBoxLayout.New2(top_to_bottom, scroll_widget);
+    scroll_layout.SetContentsMargins(0, 0, 0, 0);
+    scroll_layout.SetSpacing(8);
+    scroll_host.SetWidget(scroll_widget);
+
+    const p_in = newPanel(scroll_widget, scroll_layout, "Input", 1);
     const input = QPlainTextEdit.New(p_in.panel);
     input.SetPlaceholderText("Type or paste text here...");
     input.SetReadOnly(!editable_input);
@@ -401,7 +404,7 @@ fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: boo
     input_count.SetObjectName("countLabel");
     p_in.v.AddWidget2(input_count, 0);
 
-    const p_out = newPanel(page, parent_layout, "Output", 1);
+    const p_out = newPanel(scroll_widget, scroll_layout, "Output", 1);
     const output = QPlainTextEdit.New(p_out.panel);
     output.SetObjectName("outputPane");
     output.SetReadOnly(true);
@@ -421,6 +424,9 @@ fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: boo
     const output_count = QLabel.New5("0 characters", p_out.panel);
     output_count.SetObjectName("countLabel");
     p_out.v.AddWidget2(output_count, 0);
+
+    scroll_layout.AddStretch();
+    parent_layout.AddWidget2(scroll_host, 1);
 
     const status = QLabel.New5("", page);
     status.SetObjectName("status");
