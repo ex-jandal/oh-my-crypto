@@ -1,6 +1,7 @@
 const std = @import("std");
 const qt6 = @import("libqt6zig");
 const ciphers = @import("oh_my_crypto").cipher;
+const sidebar = @import("sidebar.zig");
 
 const QApplication = qt6.QApplication;
 const QWidget = qt6.QWidget;
@@ -33,12 +34,7 @@ const Zigzag = ciphers.Zigzag;
 const align_center: i32 = 132;
 pub const top_to_bottom: i32 = 2;
 
-pub const PageIndex = enum(i32) {
-    home = 0,
-    text = 1,
-    file = 2,
-    about = 3,
-};
+const PageIndex = sidebar.PageIndex;
 
 const Mode = enum {
     encrypt,
@@ -74,16 +70,21 @@ var title_effect: QGraphicsDropShadowEffect = undefined;
 var title_timer: QTimer = undefined;
 var glow_phase: f64 = 0;
 
-pub fn buildAll(g: std.mem.Allocator, app_io: std.Io, win: QMainWindow, s: QStackedWidget) void {
+pub fn buildUi(g: std.mem.Allocator, app_io: std.Io, win: QMainWindow, root_box: QHBoxLayout) void {
     gpa = g;
     io = app_io;
     main_win = win;
-    stack = s;
+
+    stack = QStackedWidget.New2();
+    sidebar.init(stack);
+    sidebar.build(root_box);
+    root_box.AddWidget2(stack, 1);
+
     buildHome();
     buildText();
     buildFile();
     buildAbout();
-    stack.SetCurrentIndex(@intFromEnum(PageIndex.home));
+    sidebar.selectHome();
 }
 
 fn buildHome() void {
