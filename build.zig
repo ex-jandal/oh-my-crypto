@@ -20,11 +20,18 @@ pub fn build(b: *std.Build) !void {
             },
         }),
     });
+    if (target.result.os.tag == .windows) 
+        exe.subsystem = .windows;
 
     const qt6zig = b.dependency("libqt6zig", .{
         .target = target,
         .optimize = .ReleaseFast,
     });
+
+    const asset_mod = b.createModule(.{
+        .root_source_file = b.path("assets/fonts.zig"),
+    });
+    exe.root_module.addImport("assets", asset_mod);
 
     // After defining the executable, add the module from the library
     exe.root_module.addImport("libqt6zig", qt6zig.module("libqt6zig"));
@@ -34,8 +41,8 @@ pub fn build(b: *std.Build) !void {
         "qapplication",
         "qboxlayout",
         "qclipboard",
-        "qcombobox",
         "qcolor",
+        "qcombobox",
         "qfiledialog",
         "qformlayout",
         "qgridlayout",
@@ -49,10 +56,15 @@ pub fn build(b: *std.Build) !void {
         "qobject",
         "qplaintextedit",
         "qpushbutton",
+        "qscrollarea",
+        "qsettings",
         "qspinbox",
         "qstackedwidget",
+        "qstylehints",
         "qtimer",
+        "qvariant",
         "qwidget",
+        "qfontdatabase",
     };
 
     inline for (required_artifacts) |art| {

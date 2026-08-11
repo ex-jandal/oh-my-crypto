@@ -1,3 +1,2 @@
-const std = @import("std");
-
-pub const qss = @embedFile("ayu_dark.qss");
+pub const dark = @embedFile("themes/ayu_dark.qss");
+pub const light = @embedFile("themes/ayu_light.qss");

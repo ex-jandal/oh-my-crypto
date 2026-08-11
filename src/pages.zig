@@ -1,6 +1,7 @@
 const std = @import("std");
 const qt6 = @import("libqt6zig");
 const ciphers = @import("oh_my_crypto").cipher;
+const sidebar = @import("sidebar.zig");
 
 const QApplication = qt6.QApplication;
 const QWidget = qt6.QWidget;
@@ -15,6 +16,7 @@ const QMainWindow = qt6.QMainWindow;
 const QStackedWidget = qt6.QStackedWidget;
 const QBoxLayout = qt6.QBoxLayout;
 const QHBoxLayout = qt6.QHBoxLayout;
+const QScrollArea = qt6.QScrollArea;
 const QFileDialog = qt6.QFileDialog;
 const QMessageBox = qt6.QMessageBox;
 const QTimer = qt6.QTimer;
@@ -32,12 +34,7 @@ const Zigzag = ciphers.Zigzag;
 const align_center: i32 = 132;
 pub const top_to_bottom: i32 = 2;
 
-pub const PageIndex = enum(i32) {
-    home = 0,
-    text = 1,
-    file = 2,
-    about = 3,
-};
+const PageIndex = sidebar.PageIndex;
 
 const Mode = enum {
     encrypt,
@@ -73,16 +70,21 @@ var title_effect: QGraphicsDropShadowEffect = undefined;
 var title_timer: QTimer = undefined;
 var glow_phase: f64 = 0;
 
-pub fn buildAll(g: std.mem.Allocator, app_io: std.Io, win: QMainWindow, s: QStackedWidget) void {
+pub fn buildUi(g: std.mem.Allocator, app_io: std.Io, win: QMainWindow, root_box: QHBoxLayout) void {
     gpa = g;
     io = app_io;
     main_win = win;
-    stack = s;
+
+    stack = QStackedWidget.New2();
+    sidebar.init(stack);
+    sidebar.build(root_box);
+    root_box.AddWidget2(stack, 1);
+
     buildHome();
     buildText();
     buildFile();
     buildAbout();
-    stack.SetCurrentIndex(@intFromEnum(PageIndex.home));
+    sidebar.selectHome();
 }
 
 fn buildHome() void {
@@ -382,7 +384,18 @@ fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: boo
 
     p_cipher.v.AddLayout2(key_row, 0);
 
-    const p_in = newPanel(page, parent_layout, "Input", 1);
+    const scroll_host = QScrollArea.New2();
+    scroll_host.SetObjectName("scrollArea");
+    scroll_host.SetWidgetResizable(true);
+
+    const scroll_widget = QWidget.New2();
+    scroll_widget.SetObjectName("scrollHost");
+    const scroll_layout = QBoxLayout.New2(top_to_bottom, scroll_widget);
+    scroll_layout.SetContentsMargins(0, 0, 0, 0);
+    scroll_layout.SetSpacing(8);
+    scroll_host.SetWidget(scroll_widget);
+
+    const p_in = newPanel(scroll_widget, scroll_layout, "Input", 1);
     const input = QPlainTextEdit.New(p_in.panel);
     input.SetPlaceholderText("Type or paste text here...");
     input.SetReadOnly(!editable_input);
@@ -392,7 +405,7 @@ fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: boo
     input_count.SetObjectName("countLabel");
     p_in.v.AddWidget2(input_count, 0);
 
-    const p_out = newPanel(page, parent_layout, "Output", 1);
+    const p_out = newPanel(scroll_widget, scroll_layout, "Output", 1);
     const output = QPlainTextEdit.New(p_out.panel);
     output.SetObjectName("outputPane");
     output.SetReadOnly(true);
@@ -412,6 +425,9 @@ fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: boo
     const output_count = QLabel.New5("0 characters", p_out.panel);
     output_count.SetObjectName("countLabel");
     p_out.v.AddWidget2(output_count, 0);
+
+    scroll_layout.AddStretch();
+    parent_layout.AddWidget2(scroll_host, 1);
 
     const status = QLabel.New5("", page);
     status.SetObjectName("status");
