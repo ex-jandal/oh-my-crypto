@@ -59,7 +59,11 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y qt6-base-dev qt6-base-dev-tools patchelf libgl1-mesa-dev
+          sudo apt-get install -y qt6-base-dev qt6-base-dev-tools patchelf libgl1-mesa-dev \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
+            libxcb-render-util0 libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-xfixes0 \
+            libxcb-xinerama0 libxcb-xkb1 libxcb-xinput0 libxcb-util1 libxkbcommon-x11-0 \
+            libxcb1 libx11-xcb1
           pip install aqtinstall
           aqt install-qt --outputdir "$HOME/qt" linux desktop 6.8.3 linux_gcc_64
 
