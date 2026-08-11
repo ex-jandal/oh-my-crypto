@@ -64,11 +64,7 @@ if [[ -z "${plugin_dir:-}" ]]; then
   plugin_dir="/usr/lib/x86_64-linux-gnu/qt6/plugins"
 fi
 
-for p in libqxcb.so libqoffscreen.so; do
-  if [[ -e "$plugin_dir/platforms/$p" ]]; then
-    cp -L "$plugin_dir/platforms/$p" "$pkg/plugins/platforms/$p"
-  fi
-done
+cp "$plugin_dir"/platforms/*.so "$pkg/plugins/platforms/"
 
 collect_deps "$pkg/lib" "$pkg/omc" "$pkg"/plugins/platforms/*.so
 
