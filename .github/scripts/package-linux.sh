@@ -48,9 +48,12 @@ rm -rf "$pkg"
 mkdir -p "$pkg/lib" "$pkg/plugins/platforms"
 cp "$bin" "$pkg/omc"
 
-if command -v qtpaths6 >/dev/null 2>&1; then
-  plugin_dir="$(qtpaths6 --plugin-dir)"
-else
+if [[ -n "${QT_PLUGIN_DIR:-}" ]]; then
+  plugin_dir="$QT_PLUGIN_DIR"
+elif command -v qtpaths6 >/dev/null 2>&1; then
+  plugin_dir="$(qtpaths6 --plugin-dir 2>/dev/null || true)"
+fi
+if [[ -z "${plugin_dir:-}" ]]; then
   plugin_dir="/usr/lib/x86_64-linux-gnu/qt6/plugins"
 fi
 
