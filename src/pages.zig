@@ -15,6 +15,7 @@ const QMainWindow = qt6.QMainWindow;
 const QStackedWidget = qt6.QStackedWidget;
 const QBoxLayout = qt6.QBoxLayout;
 const QHBoxLayout = qt6.QHBoxLayout;
+const QScrollArea = qt6.QScrollArea;
 const QFileDialog = qt6.QFileDialog;
 const QMessageBox = qt6.QMessageBox;
 const QTimer = qt6.QTimer;
@@ -200,7 +201,7 @@ fn buildText() void {
     btns.AddWidget2(btn_clear, 0);
     v.AddLayout2(btns, 0);
 
-    _ = stack.AddWidget(page);
+    _ = stack.AddWidget(wrapInScroll(page));
 }
 
 fn buildFile() void {
@@ -249,7 +250,15 @@ fn buildFile() void {
     save_row.AddStretch();
     v.AddLayout2(save_row, 0);
 
-    _ = stack.AddWidget(page);
+    _ = stack.AddWidget(wrapInScroll(page));
+}
+
+fn wrapInScroll(page: QWidget) QScrollArea {
+    const sc = QScrollArea.New2();
+    sc.SetObjectName("scrollArea");
+    sc.SetWidgetResizable(true);
+    sc.SetWidget(page);
+    return sc;
 }
 
 fn buildAbout() void {
