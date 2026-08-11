@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: linux-x86_64
+          - os: windows-latest
+            arch: windows-x86_64
+
+    runs-on: ${{ matrix.os }}
+    env:
+      TAG: ${{ github.ref_name }}
+      ARCH: ${{ matrix.arch }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 0.16.0
+
+      - name: Cache Zig artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/zig
+            .zig-cache
+            zig-pkg
+          key: ${{ runner.os }}-zig-${{ hashFiles('build.zig.zon') }}
+
+      - name: Install Qt (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-base-dev qt6-base-dev-tools patchelf
+
+      - name: Install Qt (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          pip install aqtinstall
+          mkdir -p C:/Qt
+          aqt install-qt --outputdir C:/Qt windows desktop 6.8.3 win64_llvm_mingw
+
+      - name: Build
+        run: zig build -Doptimize=ReleaseSafe
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $qtBin = "C:/Qt/6.8.3/llvm-mingw_64/bin"
+          & "$qtBin/windeployqt.exe" zig-out/bin/omc.exe --release --no-translations
+          $pkg = "omc-$env:TAG-$env:ARCH"
+          New-Item -ItemType Directory -Path $pkg | Out-Null
+          Move-Item zig-out/bin/* $pkg/
+          Compress-Archive -Path "$pkg/*" -DestinationPath "$pkg.zip"
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: bash .github/scripts/package-linux.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: omc-${{ github.ref_name }}-${{ matrix.arch }}
+          path: omc-*
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: omc-*
+          merge-multiple: true
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
