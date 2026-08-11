@@ -1,12 +1,13 @@
 QWidget {
     background-color: #0b0e14;
     color: #bfc7d5;
-    font-family: "DejaVu Sans", "Ubuntu Sans", "Sans Serif";
+    font-family: "Rubik","DejaVu Sans", "Ubuntu Sans", "Sans Serif";
     font-size: 14px;
 }
 
 QMainWindow, QStackedWidget, QScrollArea {
     background-color: #0b0e14;
+    border: none;
 }
 
 QWidget#pageHome {
@@ -317,7 +318,7 @@ QLineEdit::placeholder {
 }
 
 QPlainTextEdit {
-    font-family: "DejaVu Sans Mono", "Ubuntu Mono", monospace;
+    // font-family: "DejaVu Sans Mono", "Ubuntu Mono", monospace;
     font-size: 13px;
     padding: 10px;
     min-height: 140px;
