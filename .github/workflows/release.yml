@@ -29,10 +29,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v1
-        with:
-          version: 0.16.0
+      - name: Install Zig (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          curl -fsSL -o /tmp/zig.tar.xz https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz
+          tar -xf /tmp/zig.tar.xz -C /tmp
+          echo "/tmp/zig-x86_64-linux-0.16.0" >> "$GITHUB_PATH"
+
+      - name: Install Zig (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path C:/tools | Out-Null
+          curl.exe -fsSL -o C:/tools/zig.zip https://ziglang.org/download/0.16.0/zig-x86_64-windows-0.16.0.zip
+          Expand-Archive -Path C:/tools/zig.zip -DestinationPath C:/tools
+          Add-Content $env:GITHUB_PATH "C:\tools\zig-x86_64-windows-0.16.0"
 
       - name: Cache Zig artifacts
         uses: actions/cache@v4
