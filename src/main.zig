@@ -2,6 +2,7 @@ const std = @import("std");
 const qt6 = @import("libqt6zig");
 const pages = @import("pages.zig");
 const style = @import("style.zig");
+const fonts = @import("assets");
 
 const PageIndex = pages.PageIndex;
 const top_to_bottom: i32 = pages.top_to_bottom;
@@ -14,6 +15,7 @@ const QPushButton = qt6.QPushButton;
 const QLabel = qt6.QLabel;
 const QBoxLayout = qt6.QBoxLayout;
 const QHBoxLayout = qt6.QHBoxLayout;
+const QFontDatabase = qt6.QFontDatabase;
 
 var stack: QStackedWidget = undefined;
 
@@ -29,6 +31,9 @@ pub fn main(init: std.process.Init) !void {
 
     const qapp = QApplication.New(init.arena.allocator(), &argc, argv);
     defer qapp.Delete();
+
+    _ = QFontDatabase.AddApplicationFontFromData(@constCast(fonts.rubik));
+    _ = QFontDatabase.AddApplicationFontFromData(@constCast(fonts.rubik_italic));
 
     qapp.SetStyleSheet(style.qss);
 
