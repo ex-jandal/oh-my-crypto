@@ -61,15 +61,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y qt6-base-dev qt6-base-dev-tools patchelf libgl1-mesa-dev
           pip install aqtinstall
-          sudo mkdir -p /opt/qt
-          sudo aqt install-qt --outputdir /opt/qt linux desktop 6.8.3 gcc_64
+          aqt install-qt --outputdir "$HOME/qt" linux desktop 6.8.3 gcc_64
 
       - name: Overlay Qt 6.8 into system paths (Linux)
         if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
-          QT=/opt/qt/6.8.3/gcc_64
+          QT=$HOME/qt/6.8.3/gcc_64
 
           sudo rm -rf /usr/include/x86_64-linux-gnu/qt6
           sudo ln -s $QT/include /usr/include/x86_64-linux-gnu/qt6
