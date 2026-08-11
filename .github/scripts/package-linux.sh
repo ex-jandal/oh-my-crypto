@@ -66,7 +66,15 @@ fi
 
 cp "$plugin_dir"/platforms/*.so "$pkg/plugins/platforms/"
 
-collect_deps "$pkg/lib" "$pkg/omc" "$pkg"/plugins/platforms/*.so
+qt_lib_dir=""
+if [[ -n "${QT_PLUGIN_DIR:-}" ]]; then
+  qt_lib_dir="$(dirname "$(dirname "$QT_PLUGIN_DIR")")/lib"
+fi
+if [[ -d "$qt_lib_dir" ]]; then
+  cp -L "$qt_lib_dir"/libQt6*.so* "$pkg/lib/"
+fi
+
+collect_deps "$pkg/lib" "$pkg/omc" "$pkg"/plugins/platforms/*.so "$pkg"/lib/*
 
 patchelf --set-rpath '$ORIGIN/lib' "$pkg/omc"
 patchelf --set-rpath '$ORIGIN/../../lib' "$pkg"/plugins/platforms/*.so
