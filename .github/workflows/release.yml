@@ -98,7 +98,7 @@ jobs:
           aqt install-qt --outputdir C:/Qt windows desktop 6.8.3 win64_llvm_mingw
 
       - name: Build
-        run: zig build -Doptimize=ReleaseSafe
+        run: zig build -Doptimize=ReleaseSafe -Dcpu=x86_64_v2
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
