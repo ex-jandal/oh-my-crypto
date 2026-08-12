@@ -2,6 +2,7 @@ const std = @import("std");
 const config = @import("config");
 const qt6 = @import("libqt6zig");
 const ciphers = @import("oh_my_crypto").cipher;
+const modern = @import("oh_my_crypto").modern;
 const sidebar = @import("sidebar.zig");
 
 const QApplication = qt6.QApplication;
@@ -42,9 +43,27 @@ const Mode = enum {
     decrypt,
 };
 
+const classical_names = [_][]const u8{
+    "Caesar",
+    "Multiplicative",
+    "Affine",
+    "Autokey",
+    "Vigenere",
+    "Zigzag",
+};
+
+const modern_names = [_][]const u8{
+    "XChaCha20-Poly1305",
+    "ChaCha20-Poly1305",
+    "AES-256-GCM",
+};
+
 const Form = struct {
+    category: QComboBox,
     combo: QComboBox,
     keyword_edit: QLineEdit,
+    password_edit: QLineEdit,
+    kdf_combo: QComboBox,
     num1: QSpinBox,
     num2: QSpinBox,
     num1_label: QLabel,
@@ -114,7 +133,7 @@ fn buildHome() void {
     title_timer.Start(80);
 
     const subtitle = QLabel.New5(
-        "Encrypt and decrypt text with six classical ciphers",
+        "Encrypt and decrypt text with classical and modern ciphers",
         page,
     );
     subtitle.SetObjectName("subtitle");
@@ -345,14 +364,34 @@ fn newPanel(page: QWidget, parent_layout: QBoxLayout, title_text: []const u8, st
 fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: bool) Form {
     const p_cipher = newPanel(page, parent_layout, "Cipher & Key", 0);
 
+    const category = QComboBox.New(p_cipher.panel);
+    category.AddItem("Classical");
+    category.AddItem("Modern");
+    p_cipher.v.AddWidget2(category, 0);
+
     const combo = QComboBox.New(p_cipher.panel);
-    combo.AddItem("Caesar");
-    combo.AddItem("Multiplicative");
-    combo.AddItem("Affine");
-    combo.AddItem("Autokey");
-    combo.AddItem("Vigenere");
-    combo.AddItem("Zigzag");
+    for (classical_names) |name| {
+        combo.AddItem(name);
+    }
     p_cipher.v.AddWidget2(combo, 0);
+
+    const modern_row = QHBoxLayout.New(p_cipher.panel);
+
+    const password_edit = QLineEdit.New(p_cipher.panel);
+    password_edit.SetPlaceholderText("Password (modern)");
+    password_edit.SetEchoMode(qt6.qlineedit_enums.EchoMode.Password);
+    password_edit.SetClearButtonEnabled(true);
+    password_edit.SetVisible(false);
+    modern_row.AddWidget2(password_edit, 3);
+
+    const kdf_combo = QComboBox.New(p_cipher.panel);
+    kdf_combo.AddItem("Argon2id");
+    kdf_combo.AddItem("PBKDF2-SHA256");
+    kdf_combo.AddItem("scrypt");
+    kdf_combo.SetVisible(false);
+    modern_row.AddWidget2(kdf_combo, 1);
+
+    p_cipher.v.AddLayout2(modern_row, 0);
 
     const key_row = QHBoxLayout.New(p_cipher.panel);
 
@@ -435,8 +474,11 @@ fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: boo
     parent_layout.AddWidget2(status, 0);
 
     const form = Form{
+        .category = category,
         .combo = combo,
         .keyword_edit = keyword_edit,
+        .password_edit = password_edit,
+        .kdf_combo = kdf_combo,
         .num1 = num1,
         .num2 = num2,
         .num1_label = num1_label,
@@ -450,8 +492,16 @@ fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: boo
         .swap_btn = swap_btn,
     };
     updateCipherFields(form);
+    category.OnCurrentIndexChanged(onCategoryChanged);
     combo.OnCurrentIndexChanged(onCipherChanged);
     return form;
+}
+
+fn onCategoryChanged(self: QComboBox, index: i32) callconv(.c) void {
+    const f = if (self.ptr == text_form.category.ptr) &text_form else &file_form;
+    _ = index;
+    repopulateAlgorithmCombo(f);
+    updateCipherFields(f.*);
 }
 
 fn onCipherChanged(self: QComboBox, index: i32) callconv(.c) void {
@@ -460,7 +510,33 @@ fn onCipherChanged(self: QComboBox, index: i32) callconv(.c) void {
     updateCipherFields(f.*);
 }
 
+fn repopulateAlgorithmCombo(f: *Form) void {
+    _ = f.combo.BlockSignals(true);
+    defer _ = f.combo.BlockSignals(false);
+
+    f.combo.Clear();
+    switch (f.category.CurrentIndex()) {
+        0 => for (classical_names) |name| f.combo.AddItem(name),
+        1 => for (modern_names) |name| f.combo.AddItem(name),
+        else => unreachable,
+    }
+    f.combo.SetCurrentIndex(0);
+}
+
 fn updateCipherFields(f: Form) void {
+    const is_modern = f.category.CurrentIndex() == 1;
+
+    f.password_edit.SetVisible(is_modern);
+    f.kdf_combo.SetVisible(is_modern);
+
+    f.keyword_edit.SetVisible(false);
+    f.num1_label.SetVisible(false);
+    f.num1.SetVisible(false);
+    f.num2_label.SetVisible(false);
+    f.num2.SetVisible(false);
+
+    if (is_modern) return;
+
     const idx = f.combo.CurrentIndex();
     const use_keyword = idx == 3 or idx == 4;
     const use_num2 = idx == 2;
@@ -596,8 +672,12 @@ fn execute(f: *Form, mode: Mode) void {
     }
 
     const out = doCipher(f, text, mode) catch |err| {
-        setStatus(f, false, "Invalid key or input for the selected cipher.");
-        _ = QMessageBox.Information(main_win, "Cipher Error", @errorName(err));
+        const msg = if (err == error.NoPasswordProvided)
+            "Enter a password for the selected algorithm."
+        else
+            "Invalid key or input for the selected algorithm.";
+        setStatus(f, false, msg);
+        _ = QMessageBox.Information(main_win, "Crypto Error", @errorName(err));
         return;
     };
     defer gpa.free(out);
@@ -608,6 +688,10 @@ fn execute(f: *Form, mode: Mode) void {
 }
 
 fn doCipher(f: *Form, text: []const u8, mode: Mode) ![]u8 {
+    if (f.category.CurrentIndex() == 1) {
+        return doModern(f, text, mode);
+    }
+
     const buf = try gpa.alloc(u8, text.len);
     errdefer gpa.free(buf);
 
@@ -664,6 +748,30 @@ fn doCipher(f: *Form, text: []const u8, mode: Mode) ![]u8 {
         else => unreachable,
     }
     return buf;
+}
+
+fn doModern(f: *Form, text: []const u8, mode: Mode) ![]u8 {
+    const password = f.password_edit.Text(gpa);
+    defer gpa.free(password);
+    if (password.len == 0) return error.NoPasswordProvided;
+
+    const kdf = switch (f.kdf_combo.CurrentIndex()) {
+        0 => modern.Kdf.argon2id,
+        1 => modern.Kdf.pbkdf2_sha256,
+        2 => modern.Kdf.scrypt,
+        else => unreachable,
+    };
+    const aead = switch (f.combo.CurrentIndex()) {
+        0 => modern.Aead.xchacha20_poly1305,
+        1 => modern.Aead.chacha20_poly1305,
+        2 => modern.Aead.aes256_gcm,
+        else => unreachable,
+    };
+
+    return switch (mode) {
+        .encrypt => modern.encrypt(io, gpa, password, text, .{ .kdf = kdf, .aead = aead }),
+        .decrypt => modern.decrypt(io, gpa, password, text),
+    };
 }
 
 fn onCopy(self: QPushButton) callconv(.c) void {
