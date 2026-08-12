@@ -1,0 +1,14 @@
+[git]
+conventional_commits = true
+filter_unconventional = false
+split_commits = false
+commit_parsers = [
+    { message = "^feat", group = "Features" },
+    { message = "^fix", group = "Bug Fixes" },
+    { message = "^perf", group = "Performance" },
+    { message = "^refactor", group = "Refactor" },
+    { message = "^docs", group = "Documentation" },
+    { message = "^build|^ci|^chore", group = "Build & CI" },
+    { message = ".*", group = "Other" },
+]
+filter_commits = false
