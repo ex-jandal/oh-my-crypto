@@ -1,6 +1,9 @@
 .{
     .name = .oh_my_crypto,
-    .version = "0.2.1",
+    .full_name = "Oh My Crypto",
+    .version = "0.2.2",
+    .descrption = "A desktop GUI utility for classical ciphers, written in Zig 0.16.0 with Qt 6.",
+    .license = "MIT License",
     .fingerprint = 0x915f639e6896f245,
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
@@ -13,6 +16,7 @@
         "build.zig",
         "build.zig.zon",
         "src",
+        "assets",
         "LICENSE",
         "README.md",
     },

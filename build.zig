@@ -1,4 +1,5 @@
 const std = @import("std");
+const zon = @import("build.zig.zon");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -75,6 +76,14 @@ pub fn build(b: *std.Build) !void {
     // Use the library-provided convenience method to configure much of the exe
     const configureQtExeRootModule = @import("libqt6zig").configureQtExeRootModule;
     try configureQtExeRootModule(b, exe, .{});
+
+    const options = b.addOptions();
+    options.addOption([]const u8, "version", zon.version);
+    options.addOption([]const u8, "full_name", zon.full_name);
+    options.addOption([]const u8, "descrption", zon.descrption);
+    options.addOption([]const u8, "license", zon.license);
+
+    exe.root_module.addOptions("config", options);
 
     b.installArtifact(exe);
 

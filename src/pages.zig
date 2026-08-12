@@ -1,4 +1,5 @@
 const std = @import("std");
+const config = @import("config");
 const qt6 = @import("libqt6zig");
 const ciphers = @import("oh_my_crypto").cipher;
 const sidebar = @import("sidebar.zig");
@@ -96,7 +97,7 @@ fn buildHome() void {
 
     v.AddStretch();
 
-    const title = QLabel.New5("Oh My Crypto", page);
+    const title = QLabel.New5(config.full_name, page);
     title.SetObjectName("title");
     title.SetAlignment(align_center);
     v.AddWidget2(title, 0);
@@ -267,13 +268,13 @@ fn buildAbout() void {
 
     v.AddSpacing(4);
 
-    const p_intro = newPanel(page, v, "Oh My Crypto", 0);
-    const badge = QLabel.New5("v0.1.0", p_intro.panel);
+    const p_intro = newPanel(page, v, config.full_name, 0);
+    const badge = QLabel.New5("v" ++ config.version, p_intro.panel);
     badge.SetObjectName("versionBadge");
     p_intro.header.AddWidget2(badge, 0);
 
     const intro = QLabel.New5(
-        "A desktop GUI utility for classical ciphers, written in Zig 0.16.0 with Qt 6.",
+        config.descrption,
         p_intro.panel,
     );
     intro.SetObjectName("about");
@@ -305,7 +306,7 @@ fn buildAbout() void {
 
     const p_lic = newPanel(page, v, "License", 0);
     const lic = QLabel.New5(
-        "MIT License.\nQt is licensed separately (LGPL/GPL/commercial).",
+        config.license ++ ".\nQt is licensed separately (LGPL/GPL/commercial).",
         p_lic.panel,
     );
     lic.SetObjectName("aboutLine");

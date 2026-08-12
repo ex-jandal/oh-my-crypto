@@ -1,4 +1,5 @@
 const std = @import("std");
+const config = @import("config");
 const qt6 = @import("libqt6zig");
 const theme = @import("theme.zig");
 
@@ -37,7 +38,7 @@ pub fn build(root_box: QHBoxLayout) void {
     v.SetContentsMargins(16, 28, 16, 20);
     v.SetSpacing(4);
 
-    const brand = QLabel.New5("Oh My Crypto", sidebar);
+    const brand = QLabel.New5(config.full_name, sidebar);
     brand.SetObjectName("brand");
     v.AddWidget2(brand, 0);
 
@@ -71,7 +72,7 @@ pub fn build(root_box: QHBoxLayout) void {
     theme.attachButton(theme_btn);
     v.AddWidget2(theme_btn, 0);
 
-    const version = QLabel.New5("v0.1.0", sidebar);
+    const version = QLabel.New5("v" ++ config.version, sidebar);
     version.SetObjectName("version");
     v.AddWidget2(version, 0);
 
