@@ -449,7 +449,7 @@ fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: boo
 
     const password_edit = QLineEdit.New(p_cipher.panel);
     password_edit.SetPlaceholderText("Password (modern)");
-    password_edit.SetEchoMode(qt6.qlineedit_enums.EchoMode.Password);
+    password_edit.SetEchoMode(qt6.qlineedit_enums.EchoMode.Normal);
     password_edit.SetClearButtonEnabled(true);
     password_edit.SetVisible(false);
     modern_row.AddWidget2(password_edit, 3);
