@@ -32,6 +32,11 @@ const Affine = ciphers.Affine;
 const Autokey = ciphers.Autokey;
 const Viegener = ciphers.Viegener;
 const Zigzag = ciphers.Zigzag;
+const Atbash = ciphers.Atbash;
+const Rot13 = ciphers.Rot13;
+const Beaufort = ciphers.Beaufort;
+const ColumnarTransposition = ciphers.ColumnarTransposition;
+const Bifid = ciphers.Bifid;
 
 const align_center: i32 = 132;
 pub const top_to_bottom: i32 = 2;
@@ -50,12 +55,44 @@ const classical_names = [_][]const u8{
     "Autokey",
     "Vigenere",
     "Zigzag",
+    "Atbash",
+    "Rot13",
+    "Beaufort",
+    "Columnar Transposition",
+    "Bifid",
 };
 
 const modern_names = [_][]const u8{
     "XChaCha20-Poly1305",
     "ChaCha20-Poly1305",
     "AES-256-GCM",
+    "AES-128-GCM",
+    "AES-256-GCM-SIV",
+    "AES-128-GCM-SIV",
+    "AEGIS-256",
+    "AEGIS-128L",
+    "XSalsa20-Poly1305",
+    "XChaCha12-Poly1305",
+    "ChaCha12-Poly1305",
+};
+
+const hash_names = [_][]const u8{
+    "SHA-256",
+    "SHA-512",
+    "SHA3-256",
+    "BLAKE3",
+    "SHA-1",
+    "MD5",
+    "SHA-224",
+    "SHA-384",
+    "SHA-512/256",
+    "SHA3-224",
+    "SHA3-384",
+    "SHA3-512",
+    "SHAKE128",
+    "SHAKE256",
+    "BLAKE2s-256",
+    "BLAKE2b-512",
 };
 
 const Form = struct {
@@ -75,6 +112,9 @@ const Form = struct {
     output_count: QLabel,
     copy_btn: QPushButton,
     swap_btn: QPushButton,
+    enc_btn: QPushButton = undefined,
+    dec_btn: QPushButton = undefined,
+    hash_btn: QPushButton = undefined,
 };
 
 var io: std.Io = undefined;
@@ -133,7 +173,7 @@ fn buildHome() void {
     title_timer.Start(80);
 
     const subtitle = QLabel.New5(
-        "Encrypt and decrypt text with classical and modern ciphers",
+        "Encrypt, decrypt and hash text with classical and modern algorithms",
         page,
     );
     subtitle.SetObjectName("subtitle");
@@ -160,6 +200,11 @@ fn buildHome() void {
         "Autokey",
         "Vigenere",
         "Zigzag",
+        "Atbash",
+        "Rot13",
+        "Beaufort",
+        "Columnar",
+        "Bifid",
     };
     for (ciphers_list, 0..) |name, i| {
         const row: i32 = @intCast(i / 3);
@@ -174,7 +219,7 @@ fn buildHome() void {
     v.AddSpacing(12);
 
     const note = QLabel.New5(
-        "Classical ciphers for learning cryptography\n(not for real data).",
+        "Classical ciphers and modern AEAD encryption with password key derivation\n(not for real data).",
         page,
     );
     note.SetObjectName("note");
@@ -216,11 +261,22 @@ fn buildText() void {
     btn_dec.OnClicked(onTextDecrypt);
     btns.AddWidget2(btn_dec, 1);
 
+    const btn_hash = QPushButton.New5("Hash", page);
+    btn_hash.SetObjectName("primaryBtn");
+    btn_hash.OnClicked(onTextHash);
+    btn_hash.SetVisible(false);
+    btns.AddWidget2(btn_hash, 1);
+
     const btn_clear = QPushButton.New5("Clear", page);
     btn_clear.SetObjectName("ghostBtn");
     btn_clear.OnClicked(onTextClear);
     btns.AddWidget2(btn_clear, 0);
     v.AddLayout2(btns, 0);
+
+    text_form.enc_btn = btn_enc;
+    text_form.dec_btn = btn_dec;
+    text_form.hash_btn = btn_hash;
+    updateActionButtons(text_form);
 
     _ = stack.AddWidget(page);
 }
@@ -261,7 +317,18 @@ fn buildFile() void {
     btn_dec.SetObjectName("secondaryBtn");
     btn_dec.OnClicked(onFileDecrypt);
     btns.AddWidget2(btn_dec, 1);
+
+    const btn_hash = QPushButton.New5("Hash", page);
+    btn_hash.SetObjectName("primaryBtn");
+    btn_hash.OnClicked(onFileHash);
+    btn_hash.SetVisible(false);
+    btns.AddWidget2(btn_hash, 1);
     v.AddLayout2(btns, 0);
+
+    file_form.enc_btn = btn_enc;
+    file_form.dec_btn = btn_dec;
+    file_form.hash_btn = btn_hash;
+    updateActionButtons(file_form);
 
     const save_row = QHBoxLayout.New(page);
     const btn_save = QPushButton.New5("Save Result...", page);
@@ -302,8 +369,10 @@ fn buildAbout() void {
 
     const p_feat = newPanel(page, v, "Features", 0);
     const bullets = [_][]const u8{
-        "•  Six classical ciphers: Caesar, Multiplicative, Affine, Autokey, Vigenere, Zigzag",
-        "•  Encrypt or decrypt typed text, or process .txt files",
+        "•  Eleven classical ciphers: Caesar, Multiplicative, Affine, Autokey, Vigenere, Zigzag, Atbash, Rot13, Beaufort, Columnar, Bifid",
+        "•  Eleven modern AEAD algorithms (XChaCha20, ChaCha20, AES-GCM, AEGIS and more) keyed from a password via Argon2id, PBKDF2 or scrypt",
+        "•  Sixteen hash algorithms: SHA-1/2/3, SHAKE, BLAKE2, BLAKE3, MD5",
+        "•  Encrypt or decrypt typed text, hash it, or process .txt files",
         "•  Copy results or move them back to the input in one click",
         "•  Live char and word counts with a status line",
     };
@@ -367,6 +436,7 @@ fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: boo
     const category = QComboBox.New(p_cipher.panel);
     category.AddItem("Classical");
     category.AddItem("Modern");
+    category.AddItem("Hash");
     p_cipher.v.AddWidget2(category, 0);
 
     const combo = QComboBox.New(p_cipher.panel);
@@ -502,6 +572,7 @@ fn onCategoryChanged(self: QComboBox, index: i32) callconv(.c) void {
     _ = index;
     repopulateAlgorithmCombo(f);
     updateCipherFields(f.*);
+    updateActionButtons(f.*);
 }
 
 fn onCipherChanged(self: QComboBox, index: i32) callconv(.c) void {
@@ -518,13 +589,23 @@ fn repopulateAlgorithmCombo(f: *Form) void {
     switch (f.category.CurrentIndex()) {
         0 => for (classical_names) |name| f.combo.AddItem(name),
         1 => for (modern_names) |name| f.combo.AddItem(name),
+        2 => for (hash_names) |name| f.combo.AddItem(name),
         else => unreachable,
     }
     f.combo.SetCurrentIndex(0);
 }
 
+fn updateActionButtons(f: Form) void {
+    const is_hash = f.category.CurrentIndex() == 2;
+    f.enc_btn.SetVisible(!is_hash);
+    f.dec_btn.SetVisible(!is_hash);
+    f.hash_btn.SetVisible(is_hash);
+}
+
 fn updateCipherFields(f: Form) void {
-    const is_modern = f.category.CurrentIndex() == 1;
+    const cat = f.category.CurrentIndex();
+    const is_modern = cat == 1;
+    const is_hash = cat == 2;
 
     f.password_edit.SetVisible(is_modern);
     f.kdf_combo.SetVisible(is_modern);
@@ -535,12 +616,12 @@ fn updateCipherFields(f: Form) void {
     f.num2_label.SetVisible(false);
     f.num2.SetVisible(false);
 
-    if (is_modern) return;
+    if (is_modern or is_hash) return;
 
     const idx = f.combo.CurrentIndex();
-    const use_keyword = idx == 3 or idx == 4;
+    const use_keyword = idx == 3 or idx == 4 or idx == 8 or idx == 9 or idx == 10;
     const use_num2 = idx == 2;
-    const use_num1 = idx != 3 and idx != 4;
+    const use_num1 = idx != 3 and idx != 4 and idx != 8 and idx != 9 and idx != 10;
 
     f.keyword_edit.SetVisible(use_keyword);
     f.num1_label.SetVisible(use_num1);
@@ -597,6 +678,11 @@ fn onTextDecrypt(self: QPushButton) callconv(.c) void {
     execute(&text_form, .decrypt);
 }
 
+fn onTextHash(self: QPushButton) callconv(.c) void {
+    _ = self;
+    execute(&text_form, .encrypt);
+}
+
 fn onTextClear(self: QPushButton) callconv(.c) void {
     _ = self;
     text_form.input.SetPlainText("");
@@ -641,6 +727,11 @@ fn onFileDecrypt(self: QPushButton) callconv(.c) void {
     execute(&file_form, .decrypt);
 }
 
+fn onFileHash(self: QPushButton) callconv(.c) void {
+    _ = self;
+    execute(&file_form, .encrypt);
+}
+
 fn onFileSave(self: QPushButton) callconv(.c) void {
     _ = self;
     const out = file_form.output.ToPlainText(gpa);
@@ -671,20 +762,51 @@ fn execute(f: *Form, mode: Mode) void {
         return;
     }
 
-    const out = doCipher(f, text, mode) catch |err| {
-        const msg = if (err == error.NoPasswordProvided)
-            "Enter a password for the selected algorithm."
-        else
-            "Invalid key or input for the selected algorithm.";
-        setStatus(f, false, msg);
-        _ = QMessageBox.Information(main_win, "Crypto Error", @errorName(err));
-        return;
-    };
+    const is_hash = f.category.CurrentIndex() == 2;
+    const out = if (is_hash)
+        doHash(f, text) catch |err| {
+            setStatus(f, false, "Hash failed.");
+            _ = QMessageBox.Information(main_win, "Crypto Error", @errorName(err));
+            return;
+        }
+    else
+        doCipher(f, text, mode) catch |err| {
+            const msg = if (err == error.NoPasswordProvided)
+                "Enter a password for the selected algorithm."
+            else
+                "Invalid key or input for the selected algorithm.";
+            setStatus(f, false, msg);
+            _ = QMessageBox.Information(main_win, "Crypto Error", @errorName(err));
+            return;
+        };
     defer gpa.free(out);
 
     f.output.SetPlainText(out);
     updateFormCounts(f);
-    setStatus(f, true, if (mode == .encrypt) "Encrypted." else "Decrypted.");
+    setStatus(f, true, if (is_hash) "Hashed." else if (mode == .encrypt) "Encrypted." else "Decrypted.");
+}
+
+fn doHash(f: *Form, text: []const u8) ![]u8 {
+    const algo: modern.HashAlgo = switch (f.combo.CurrentIndex()) {
+        0 => .sha256,
+        1 => .sha512,
+        2 => .sha3_256,
+        3 => .blake3,
+        4 => .sha1,
+        5 => .md5,
+        6 => .sha224,
+        7 => .sha384,
+        8 => .sha512_256,
+        9 => .sha3_224,
+        10 => .sha3_384,
+        11 => .sha3_512,
+        12 => .shake128,
+        13 => .shake256,
+        14 => .blake2s256,
+        15 => .blake2b512,
+        else => unreachable,
+    };
+    return modern.hash(gpa, algo, text);
 }
 
 fn doCipher(f: *Form, text: []const u8, mode: Mode) ![]u8 {
@@ -745,6 +867,47 @@ fn doCipher(f: *Form, text: []const u8, mode: Mode) ![]u8 {
                 .decrypt => try c.decrypt(text, buf),
             }
         },
+        6 => {
+            const c = try Cipher(Atbash).init(.{});
+            switch (mode) {
+                .encrypt => try c.encrypt(text, buf),
+                .decrypt => try c.decrypt(text, buf),
+            }
+        },
+        7 => {
+            const c = try Cipher(Rot13).init(.{});
+            switch (mode) {
+                .encrypt => try c.encrypt(text, buf),
+                .decrypt => try c.decrypt(text, buf),
+            }
+        },
+        8 => {
+            const keyword = f.keyword_edit.Text(gpa);
+            defer gpa.free(keyword);
+            const c = try Cipher(Beaufort).init(.{keyword});
+            switch (mode) {
+                .encrypt => try c.encrypt(text, buf),
+                .decrypt => try c.decrypt(text, buf),
+            }
+        },
+        9 => {
+            const keyword = f.keyword_edit.Text(gpa);
+            defer gpa.free(keyword);
+            const c = try Cipher(ColumnarTransposition).init(.{ gpa, keyword });
+            switch (mode) {
+                .encrypt => try c.encrypt(text, buf),
+                .decrypt => try c.decrypt(text, buf),
+            }
+        },
+        10 => {
+            const keyword = f.keyword_edit.Text(gpa);
+            defer gpa.free(keyword);
+            const c = try Cipher(Bifid).init(.{ gpa, keyword });
+            switch (mode) {
+                .encrypt => try c.encrypt(text, buf),
+                .decrypt => try c.decrypt(text, buf),
+            }
+        },
         else => unreachable,
     }
     return buf;
@@ -765,6 +928,14 @@ fn doModern(f: *Form, text: []const u8, mode: Mode) ![]u8 {
         0 => modern.Aead.xchacha20_poly1305,
         1 => modern.Aead.chacha20_poly1305,
         2 => modern.Aead.aes256_gcm,
+        3 => modern.Aead.aes128_gcm,
+        4 => modern.Aead.aes256_gcm_siv,
+        5 => modern.Aead.aes128_gcm_siv,
+        6 => modern.Aead.aegis256,
+        7 => modern.Aead.aegis128l,
+        8 => modern.Aead.xsalsa20_poly1305,
+        9 => modern.Aead.xchacha12_poly1305,
+        10 => modern.Aead.chacha12_poly1305,
         else => unreachable,
     };
 
