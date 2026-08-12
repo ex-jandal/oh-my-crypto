@@ -19,12 +19,44 @@ pub const Aead = enum(u8) {
     xchacha20_poly1305,
     chacha20_poly1305,
     aes256_gcm,
+    aes128_gcm,
+    aes256_gcm_siv,
+    aes128_gcm_siv,
+    aegis256,
+    aegis128l,
+    xsalsa20_poly1305,
+    xchacha12_poly1305,
+    chacha12_poly1305,
 
     pub fn nonceLength(self: Aead) usize {
         return switch (self) {
             .xchacha20_poly1305 => crypto.aead.chacha_poly.XChaCha20Poly1305.nonce_length,
             .chacha20_poly1305 => crypto.aead.chacha_poly.ChaCha20Poly1305.nonce_length,
+            .xchacha12_poly1305 => crypto.aead.chacha_poly.XChaCha12Poly1305.nonce_length,
+            .chacha12_poly1305 => crypto.aead.chacha_poly.ChaCha12Poly1305.nonce_length,
             .aes256_gcm => crypto.aead.aes_gcm.Aes256Gcm.nonce_length,
+            .aes128_gcm => crypto.aead.aes_gcm.Aes128Gcm.nonce_length,
+            .aes256_gcm_siv => crypto.aead.aes_gcm_siv.Aes256GcmSiv.nonce_length,
+            .aes128_gcm_siv => crypto.aead.aes_gcm_siv.Aes128GcmSiv.nonce_length,
+            .aegis256 => crypto.aead.aegis.Aegis256.nonce_length,
+            .aegis128l => crypto.aead.aegis.Aegis128L.nonce_length,
+            .xsalsa20_poly1305 => crypto.aead.salsa_poly.XSalsa20Poly1305.nonce_length,
+        };
+    }
+
+    pub fn keyLength(self: Aead) usize {
+        return switch (self) {
+            .xchacha20_poly1305 => crypto.aead.chacha_poly.XChaCha20Poly1305.key_length,
+            .chacha20_poly1305 => crypto.aead.chacha_poly.ChaCha20Poly1305.key_length,
+            .xchacha12_poly1305 => crypto.aead.chacha_poly.XChaCha12Poly1305.key_length,
+            .chacha12_poly1305 => crypto.aead.chacha_poly.ChaCha12Poly1305.key_length,
+            .aes256_gcm => crypto.aead.aes_gcm.Aes256Gcm.key_length,
+            .aes128_gcm => crypto.aead.aes_gcm.Aes128Gcm.key_length,
+            .aes256_gcm_siv => crypto.aead.aes_gcm_siv.Aes256GcmSiv.key_length,
+            .aes128_gcm_siv => crypto.aead.aes_gcm_siv.Aes128GcmSiv.key_length,
+            .aegis256 => crypto.aead.aegis.Aegis256.key_length,
+            .aegis128l => crypto.aead.aegis.Aegis128L.key_length,
+            .xsalsa20_poly1305 => crypto.aead.salsa_poly.XSalsa20Poly1305.key_length,
         };
     }
 };
@@ -34,6 +66,18 @@ pub const HashAlgo = enum {
     sha512,
     sha3_256,
     blake3,
+    sha1,
+    md5,
+    sha224,
+    sha384,
+    sha512_256,
+    sha3_224,
+    sha3_384,
+    sha3_512,
+    shake128,
+    shake256,
+    blake2s256,
+    blake2b512,
 };
 
 pub const Argon2Params = struct {
@@ -121,6 +165,22 @@ pub fn encrypt(
             nonce[0..crypto.aead.chacha_poly.ChaCha20Poly1305.nonce_length].*,
             key[0..crypto.aead.chacha_poly.ChaCha20Poly1305.key_length].*,
         ),
+        .xchacha12_poly1305 => crypto.aead.chacha_poly.XChaCha12Poly1305.encrypt(
+            ct,
+            tag,
+            plaintext,
+            "",
+            nonce[0..crypto.aead.chacha_poly.XChaCha12Poly1305.nonce_length].*,
+            key[0..crypto.aead.chacha_poly.XChaCha12Poly1305.key_length].*,
+        ),
+        .chacha12_poly1305 => crypto.aead.chacha_poly.ChaCha12Poly1305.encrypt(
+            ct,
+            tag,
+            plaintext,
+            "",
+            nonce[0..crypto.aead.chacha_poly.ChaCha12Poly1305.nonce_length].*,
+            key[0..crypto.aead.chacha_poly.ChaCha12Poly1305.key_length].*,
+        ),
         .aes256_gcm => crypto.aead.aes_gcm.Aes256Gcm.encrypt(
             ct,
             tag,
@@ -128,6 +188,54 @@ pub fn encrypt(
             "",
             nonce[0..crypto.aead.aes_gcm.Aes256Gcm.nonce_length].*,
             key[0..crypto.aead.aes_gcm.Aes256Gcm.key_length].*,
+        ),
+        .aes128_gcm => crypto.aead.aes_gcm.Aes128Gcm.encrypt(
+            ct,
+            tag,
+            plaintext,
+            "",
+            nonce[0..crypto.aead.aes_gcm.Aes128Gcm.nonce_length].*,
+            key[0..crypto.aead.aes_gcm.Aes128Gcm.key_length].*,
+        ),
+        .aes256_gcm_siv => crypto.aead.aes_gcm_siv.Aes256GcmSiv.encrypt(
+            ct,
+            tag,
+            plaintext,
+            "",
+            nonce[0..crypto.aead.aes_gcm_siv.Aes256GcmSiv.nonce_length].*,
+            key[0..crypto.aead.aes_gcm_siv.Aes256GcmSiv.key_length].*,
+        ),
+        .aes128_gcm_siv => crypto.aead.aes_gcm_siv.Aes128GcmSiv.encrypt(
+            ct,
+            tag,
+            plaintext,
+            "",
+            nonce[0..crypto.aead.aes_gcm_siv.Aes128GcmSiv.nonce_length].*,
+            key[0..crypto.aead.aes_gcm_siv.Aes128GcmSiv.key_length].*,
+        ),
+        .aegis256 => crypto.aead.aegis.Aegis256.encrypt(
+            ct,
+            tag,
+            plaintext,
+            "",
+            nonce[0..crypto.aead.aegis.Aegis256.nonce_length].*,
+            key[0..crypto.aead.aegis.Aegis256.key_length].*,
+        ),
+        .aegis128l => crypto.aead.aegis.Aegis128L.encrypt(
+            ct,
+            tag,
+            plaintext,
+            "",
+            nonce[0..crypto.aead.aegis.Aegis128L.nonce_length].*,
+            key[0..crypto.aead.aegis.Aegis128L.key_length].*,
+        ),
+        .xsalsa20_poly1305 => crypto.aead.salsa_poly.XSalsa20Poly1305.encrypt(
+            ct,
+            tag,
+            plaintext,
+            "",
+            nonce[0..crypto.aead.salsa_poly.XSalsa20Poly1305.nonce_length].*,
+            key[0..crypto.aead.salsa_poly.XSalsa20Poly1305.key_length].*,
         ),
     }
 
@@ -192,6 +300,22 @@ pub fn decrypt(
             nonce[0..crypto.aead.chacha_poly.ChaCha20Poly1305.nonce_length].*,
             key[0..crypto.aead.chacha_poly.ChaCha20Poly1305.key_length].*,
         ),
+        .xchacha12_poly1305 => try crypto.aead.chacha_poly.XChaCha12Poly1305.decrypt(
+            pt,
+            ct,
+            tag.*,
+            "",
+            nonce[0..crypto.aead.chacha_poly.XChaCha12Poly1305.nonce_length].*,
+            key[0..crypto.aead.chacha_poly.XChaCha12Poly1305.key_length].*,
+        ),
+        .chacha12_poly1305 => try crypto.aead.chacha_poly.ChaCha12Poly1305.decrypt(
+            pt,
+            ct,
+            tag.*,
+            "",
+            nonce[0..crypto.aead.chacha_poly.ChaCha12Poly1305.nonce_length].*,
+            key[0..crypto.aead.chacha_poly.ChaCha12Poly1305.key_length].*,
+        ),
         .aes256_gcm => try crypto.aead.aes_gcm.Aes256Gcm.decrypt(
             pt,
             ct,
@@ -199,6 +323,54 @@ pub fn decrypt(
             "",
             nonce[0..crypto.aead.aes_gcm.Aes256Gcm.nonce_length].*,
             key[0..crypto.aead.aes_gcm.Aes256Gcm.key_length].*,
+        ),
+        .aes128_gcm => try crypto.aead.aes_gcm.Aes128Gcm.decrypt(
+            pt,
+            ct,
+            tag.*,
+            "",
+            nonce[0..crypto.aead.aes_gcm.Aes128Gcm.nonce_length].*,
+            key[0..crypto.aead.aes_gcm.Aes128Gcm.key_length].*,
+        ),
+        .aes256_gcm_siv => try crypto.aead.aes_gcm_siv.Aes256GcmSiv.decrypt(
+            pt,
+            ct,
+            tag.*,
+            "",
+            nonce[0..crypto.aead.aes_gcm_siv.Aes256GcmSiv.nonce_length].*,
+            key[0..crypto.aead.aes_gcm_siv.Aes256GcmSiv.key_length].*,
+        ),
+        .aes128_gcm_siv => try crypto.aead.aes_gcm_siv.Aes128GcmSiv.decrypt(
+            pt,
+            ct,
+            tag.*,
+            "",
+            nonce[0..crypto.aead.aes_gcm_siv.Aes128GcmSiv.nonce_length].*,
+            key[0..crypto.aead.aes_gcm_siv.Aes128GcmSiv.key_length].*,
+        ),
+        .aegis256 => try crypto.aead.aegis.Aegis256.decrypt(
+            pt,
+            ct,
+            tag.*,
+            "",
+            nonce[0..crypto.aead.aegis.Aegis256.nonce_length].*,
+            key[0..crypto.aead.aegis.Aegis256.key_length].*,
+        ),
+        .aegis128l => try crypto.aead.aegis.Aegis128L.decrypt(
+            pt,
+            ct,
+            tag.*,
+            "",
+            nonce[0..crypto.aead.aegis.Aegis128L.nonce_length].*,
+            key[0..crypto.aead.aegis.Aegis128L.key_length].*,
+        ),
+        .xsalsa20_poly1305 => try crypto.aead.salsa_poly.XSalsa20Poly1305.decrypt(
+            pt,
+            ct,
+            tag.*,
+            "",
+            nonce[0..crypto.aead.salsa_poly.XSalsa20Poly1305.nonce_length].*,
+            key[0..crypto.aead.salsa_poly.XSalsa20Poly1305.key_length].*,
         ),
     }
 
@@ -221,14 +393,63 @@ pub fn hash(gpa: mem.Allocator, algo: HashAlgo, data: []const u8) ![]u8 {
             break :blk 32;
         },
         .blake3 => blk: {
-            crypto.hash.blake3.Blake3.hash(data, digest[0..32], .{});
+            crypto.hash.Blake3.hash(data, digest[0..32], .{});
             break :blk 32;
+        },
+        .sha1 => blk: {
+            crypto.hash.Sha1.hash(data, digest[0..20], .{});
+            break :blk 20;
+        },
+        .md5 => blk: {
+            crypto.hash.Md5.hash(data, digest[0..16], .{});
+            break :blk 16;
+        },
+        .sha224 => blk: {
+            crypto.hash.sha2.Sha224.hash(data, digest[0..28], .{});
+            break :blk 28;
+        },
+        .sha384 => blk: {
+            crypto.hash.sha2.Sha384.hash(data, digest[0..48], .{});
+            break :blk 48;
+        },
+        .sha512_256 => blk: {
+            crypto.hash.sha2.Sha512_256.hash(data, digest[0..32], .{});
+            break :blk 32;
+        },
+        .sha3_224 => blk: {
+            crypto.hash.sha3.Sha3_224.hash(data, digest[0..28], .{});
+            break :blk 28;
+        },
+        .sha3_384 => blk: {
+            crypto.hash.sha3.Sha3_384.hash(data, digest[0..48], .{});
+            break :blk 48;
+        },
+        .sha3_512 => blk: {
+            crypto.hash.sha3.Sha3_512.hash(data, digest[0..64], .{});
+            break :blk 64;
+        },
+        .shake128 => blk: {
+            crypto.hash.sha3.Shake128.hash(data, digest[0..32], .{});
+            break :blk 32;
+        },
+        .shake256 => blk: {
+            crypto.hash.sha3.Shake256.hash(data, digest[0..32], .{});
+            break :blk 32;
+        },
+        .blake2s256 => blk: {
+            crypto.hash.blake2.Blake2s256.hash(data, digest[0..32], .{});
+            break :blk 32;
+        },
+        .blake2b512 => blk: {
+            crypto.hash.blake2.Blake2b512.hash(data, digest[0..64], .{});
+            break :blk 64;
         },
     };
 
     const out = try gpa.alloc(u8, digest_len * 2);
-    const hex = std.fmt.bytesToHex(digest[0..digest_len], .lower);
-    @memcpy(out, &hex);
+    for (digest[0..digest_len], 0..) |b, i| {
+        _ = std.fmt.bufPrint(out[2 * i ..][0..2], "{x:0>2}", .{b}) catch unreachable;
+    }
     return out;
 }
 
@@ -355,7 +576,7 @@ fn parseKdf(id: u8) ?Kdf {
 }
 
 fn parseAead(id: u8) ?Aead {
-    if (id > @intFromEnum(Aead.aes256_gcm)) return null;
+    if (id > @intFromEnum(Aead.chacha12_poly1305)) return null;
     return @enumFromInt(id);
 }
 
@@ -404,7 +625,7 @@ test "modern decrypt with tampered ciphertext fails auth" {
     };
 
     try std.testing.expectError(
-        error.AuthenticationError,
+        error.AuthenticationFailed,
         decrypt(io, std.testing.allocator, "password", tampered),
     );
 }
@@ -419,7 +640,7 @@ test "modern decrypt with wrong password fails auth" {
     defer std.testing.allocator.free(enc);
 
     try std.testing.expectError(
-        error.AuthenticationError,
+        error.AuthenticationFailed,
         decrypt(io, std.testing.allocator, "wrong-password", enc),
     );
 }
@@ -455,6 +676,36 @@ test "modern hash known vectors" {
         "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
         h4,
     );
+}
+
+test "modern hash extended vectors" {
+    const gpa = std.testing.allocator;
+
+    const vectors = [_]struct { algo: HashAlgo, data: []const u8, want: []const u8 }{
+        .{ .algo = .md5, .data = "abc", .want = "900150983cd24fb0d6963f7d28e17f72" },
+        .{ .algo = .sha1, .data = "abc", .want = "a9993e364706816aba3e25717850c26c9cd0d89d" },
+        .{ .algo = .sha224, .data = "abc", .want = "23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7" },
+        .{ .algo = .sha384, .data = "abc", .want = "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7" },
+        .{ .algo = .sha512_256, .data = "abc", .want = "53048e2681941ef99b2e29b76b4c7dabe4c2d0c634fc6d46e0e2f13107e7af23" },
+        .{ .algo = .sha3_224, .data = "abc", .want = "e642824c3f8cf24ad09234ee7d3c766fc9a3a5168d0c94ad73b46fdf" },
+        .{ .algo = .sha3_384, .data = "abc", .want = "ec01498288516fc926459f58e2c6ad8df9b473cb0fc08c2596da7cf0e49be4b298d88cea927ac7f539f1edf228376d25" },
+        .{ .algo = .sha3_512, .data = "abc", .want = "b751850b1a57168a5693cd924b6b096e08f621827444f70d884f5d0240d2712e10e116e9192af3c91a7ec57647e3934057340b4cf408d5a56592f8274eec53f0" },
+        .{ .algo = .blake2s256, .data = "abc", .want = "508c5e8c327c14e2e1a72ba34eeb452f37458b209ed63a294d999b4c86675982" },
+        .{ .algo = .blake2b512, .data = "abc", .want = "ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923" },
+    };
+
+    for (vectors) |v| {
+        const out = try hash(gpa, v.algo, v.data);
+        defer gpa.free(out);
+        try std.testing.expectEqualStrings(v.want, out);
+    }
+
+    const s1 = try hash(gpa, .shake128, "abc");
+    defer gpa.free(s1);
+    const s2 = try hash(gpa, .shake256, "abc");
+    defer gpa.free(s2);
+    try std.testing.expectEqual(@as(usize, 64), s1.len);
+    try std.testing.expectEqual(@as(usize, 64), s2.len);
 }
 
 fn tinyParams(kdf: Kdf) KdfParams {
