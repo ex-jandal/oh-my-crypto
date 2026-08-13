@@ -26,6 +26,7 @@ const QFileDialog = qt6.QFileDialog;
 const QMessageBox = qt6.QMessageBox;
 const QTimer = qt6.QTimer;
 const QColor = qt6.QColor;
+const QVariant = qt6.QVariant;
 const QGraphicsDropShadowEffect = qt6.QGraphicsDropShadowEffect;
 
 const Cipher = ciphers.Cipher;
@@ -168,6 +169,9 @@ fn buildHome() void {
     const title = QLabel.New5(tr("Oh My Crypto"), page);
     title.SetObjectName("title");
     title.SetAlignment(align_center);
+    if (i18n.selected().isRtl()) {
+        _ = title.SetProperty("arabic", QVariant.New8(true));
+    }
     v.AddWidget2(title, 0);
 
     title_effect = QGraphicsDropShadowEffect.New2(page);
