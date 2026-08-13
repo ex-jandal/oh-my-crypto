@@ -1,6 +1,9 @@
 const std = @import("std");
 const qt6 = @import("libqt6zig");
 const style = @import("style.zig");
+const i18n = @import("i18n.zig");
+
+const tr = i18n.tr;
 
 const QApplication = qt6.QApplication;
 const QGuiApplication = qt6.QGuiApplication;
@@ -39,8 +42,8 @@ pub fn onButtonClicked(self: QPushButton) callconv(.c) void {
 
 pub fn label() []const u8 {
     return switch (current_theme) {
-        .dark => "Switch to Light",
-        .light => "Switch to Dark",
+        .dark => tr("Switch to Light"),
+        .light => tr("Switch to Dark"),
     };
 }
 
