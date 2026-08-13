@@ -22,8 +22,8 @@ callbacks.**
 │  │  │  (200px wide)        │  ┌──────────────────────┐  │  │  │
 │  │  │  • brand label       │  │ page 0: Home         │  │  │  │
 │  │  │  • 4 nav buttons     │  │ page 1: Text         │  │  │  │
-│  │  │  • version label     │  │ page 2: File         │  │  │  │
-│  │  │                      │  │ page 3: About        │  │  │  │
+│  │  │  • theme toggle      │  │ page 2: File         │  │  │  │
+│  │  │  • version label     │  │ page 3: About        │  │  │  │
 │  │  │                      │  └──────────────────────┘  │  │  │
 │  │  └──────────────────────┴────────────────────────────┘  │  │
 │  └─────────────────────────────────────────────────────────┘  │
@@ -39,12 +39,15 @@ Two files build the whole UI:
 
 | File | Job |
 |---|---|
-| `src/main.zig` | Creates the app, the window, the sidebar, and the page switcher. |
+| `src/main.zig` | Creates the app, the window, loads the font, and starts the loop. |
 | `src/pages.zig` | Builds the four pages (Home, Text, File, About) and all click handlers. |
-| `src/ayu_dark.qss` | The theme (colors, fonts, borders) — loaded from `src/style.zig`. |
+| `src/sidebar.zig` | Builds the sidebar navigation and the page switcher wiring. |
+| `src/theme.zig` | Dark/light theme switching + persistence (via `QSettings`). |
+| `src/style.zig` | Embeds the QSS stylesheets from `src/themes/` at compile time. |
 
-The cipher math lives in `src/cipher.zig` and is *not* part of the UI; the UI only
-calls into it when a button is clicked.
+The cipher math lives in `src/cipher.zig`, and the modern AEAD / KDF / hash math
+in `src/modern.zig`. Neither is part of the UI; the UI only calls into them when a
+button is clicked.
 
 ---
 
@@ -134,11 +137,11 @@ Signals used in this repo and the Zig methods that hook them:
 
 The `callconv(.c)` is a Zig detail: the callback must use the C calling convention
 so Qt's C bridge code can call it. `self` is the widget that emitted the signal
-(compare two widgets' `.ptr` to tell them apart — see pages.zig:442).
+(compare two widgets' `.ptr` to tell them apart — see pages.zig:578).
 
 ### 2.4 The event loop
 
-Nothing happens by itself. `QApplication.Exec()` (main.zig:72) starts Qt's **event
+Nothing happens by itself. `QApplication.Exec()` (main.zig:44) starts Qt's **event
 loop**: an infinite loop that waits for input (mouse, keyboard, timer ticks),
 dispatches the matching signal, and redraws. The program stays alive until the
 window closes, then `Exec()` returns and `main()` prints "OK!".
@@ -146,21 +149,25 @@ window closes, then `Exec()` returns and `main()` prints "OK!".
 ### 2.5 Stylesheets (QSS) — Qt's CSS
 
 Qt has a mini-CSS called **QSS**. It is a string applied once to the whole
-application (main.zig:40):
+application (`src/theme.zig`):
 
 ```zig
-qapp.SetStyleSheet(style.qss);
+qapp.SetStyleSheet(themeQss());   // theme.zig:27 — dark or light, chosen at startup
 ```
 
-`style.qss` is `src/ayu_dark.qss`, pulled into the binary at compile time via
-`@embedFile` (src/style.zig):
+There are two stylesheets — `src/themes/ayu_dark.qss` and `src/themes/ayu_light.qss`.
+Both are pulled into the binary at compile time via `@embedFile` (src/style.zig):
 
 ```zig
-pub const qss = @embedFile("ayu_dark.qss");
+pub const dark = @embedFile("themes/ayu_dark.qss");
+pub const light = @embedFile("themes/ayu_light.qss");
 ```
 
 `@embedFile` reads the file during the build and inlines its text into the program —
 so the theme ships inside the binary, no external file needed at runtime.
+
+`theme.zig` decides which one to apply: the theme saved in `QSettings`, or the
+system color scheme if nothing is saved yet (section 6).
 
 QSS rules look like CSS. A rule has a **selector** (which widgets to style) and
 **declarations** (colors, padding, fonts). See section 6 for how selectors work.
@@ -191,7 +198,7 @@ Qt is a C++ library. Zig cannot call C++ classes directly, so this project uses
 
 ```zig
 const qt6 = @import("libqt6zig");      // main.zig:2
-const QWidget = qt6.QWidget;           // main.zig:7 — local alias
+const QWidget = qt6.QWidget;           // main.zig:8 — local alias
 ```
 
 Every Qt class becomes a Zig struct under one namespace, `qt6`. The code then makes
@@ -257,13 +264,19 @@ Also relevant:
 
 ## 4. The window shell — `src/main.zig`
 
-`main()` (main.zig:32) sets up the app, builds the shell, and starts the loop:
+`main()` (main.zig:14) sets up the app, loads the font and theme, builds the shell,
+and starts the loop. It is deliberately small — the pages and sidebar are built by
+`pages.buildUi`:
 
 ```zig
-const qapp = QApplication.New(allocator, &argc, argv);   // main.zig:37  the app itself
-qapp.SetStyleSheet(style.qss);                           // main.zig:40  apply theme
+const qapp = QApplication.New(init.arena.allocator(), &argc, argv);  // main.zig:19
+// embedded Rubik font registered with the font database (main.zig:22–24)
+_ = QFontDatabase.AddApplicationFontFromData(@constCast(fonts.rubik));
+QApplication.SetFont(QFont.New6("Rubik", 12));
 
-const win = QMainWindow.New2();                          // main.zig:42  the OS window
+theme.init(init.gpa, qapp);                   // main.zig:26  apply dark/light QSS
+
+const win = QMainWindow.New2();               // main.zig:28  the OS window
 win.SetWindowTitle("Oh My Crypto");
 win.SetMinimumSize2(820, 600);
 win.Resize(1040, 700);
@@ -276,49 +289,56 @@ it. Here the central widget is a plain `QWidget` whose layout splits the screen 
 **sidebar | content**:
 
 ```zig
-const root = QWidget.New2();                     // main.zig:48
+const root = QWidget.New2();                     // main.zig:34
 const root_box = QHBoxLayout.New(root);          // horizontal split
 root_box.SetContentsMargins(0, 0, 0, 0);         // no outer padding
 root_box.SetSpacing(0);                          // no gap between columns
 ```
 
-Then the two columns are added:
+Then the two columns are added by `pages.buildUi` (pages.zig:133), which creates the
+`QStackedWidget`, asks the sidebar to build itself into the root, and then builds
+all four pages:
 
 ```zig
-root_box.AddWidget2(sidebar, 0);                 // fixed-width sidebar
-root_box.AddWidget2(stack, 1);                   // content area, takes remaining space
-win.SetCentralWidget(root);                      // main.zig:65  hang it all off the window
+stack = QStackedWidget.New2();
+sidebar.init(stack);        // pages.zig:100  sidebar learns which stack to switch
+sidebar.build(root_box);    // pages.zig:101  sidebar builds its column
+root_box.AddWidget2(stack, 1);
 ```
 
-`stack` is a `QStackedWidget` (main.zig:62) — it holds all four pages but shows only
-one at a time. **Navigation = switching which page the stack displays.**
+Back in `main()`, the whole tree hangs off the window (main.zig:41).
 
-### 4.2 The sidebar
+`stack` is a `QStackedWidget` — it holds all four pages but shows only one at a time.
+**Navigation = switching which page the stack displays.**
 
-`buildSidebar` (main.zig:116) fills the sidebar column:
+### 4.2 The sidebar — `src/sidebar.zig`
+
+The sidebar moved out of `main.zig` into its own module. `build` (sidebar.zig:33)
+fills the column:
 
 ```
 v = QBoxLayout(top → bottom) inside sidebar
 ├── brand label    "Oh My Crypto"
-├── brand tagline  "classical ciphers"
+├── brand tagline  "ciphers & hashes"
 ├── (28px spacing)
 ├── nav button "Home"     → onNavHome
 ├── nav button "Text"     → onNavText
 ├── nav button "File"     → onNavFile
 ├── nav button "About"    → onNavAbout
 ├── (stretch — pushes version to bottom)
-└── version label "v0.1.0"
+├── theme button "Switch to Light"   → theme.onButtonClicked
+└── version label ("v" + config.version)
 ```
 
-Each nav button is created with `newNav` (main.zig:77), which gives every button the
-object name `navBtn` (used by the stylesheet) and makes it **checkable**:
+Each nav button is created with `newNav` (sidebar.zig:82), which gives every button
+the object name `navBtn` (used by the stylesheet) and makes it **checkable**:
 
 ```zig
 b.SetObjectName("navBtn");
 b.SetCheckable(true);     // button can hold an on/off "checked" state
 ```
 
-The four handler functions are near-identical; this is `onNavHome` (main.zig:92):
+The four handler functions are near-identical; this is `onNavHome` (sidebar.zig:101):
 
 ```zig
 fn onNavHome(self: QPushButton) callconv(.c) void {
@@ -328,7 +348,7 @@ fn onNavHome(self: QPushButton) callconv(.c) void {
 }
 ```
 
-`selectNav` (main.zig:85) is the "highlight only the active button" logic. It uses
+`selectNav` (sidebar.zig:90) is the "highlight only the active button" logic. It uses
 `.ptr` — the underlying C pointer — to compare against the active button:
 
 ```zig
@@ -337,20 +357,23 @@ nav_text.SetChecked(nav_text.ptr == active.ptr);
 // ... etc
 ```
 
-The `PageIndex` enum (main.zig:18) gives the four pages stable numbers:
+The `PageIndex` enum (sidebar.zig:13) gives the four pages stable numbers:
 
 ```zig
-const PageIndex = enum(i32) {
+pub const PageIndex = enum(i32) {
     home = 0, text = 1, file = 2, about = 3,
 };
 ```
 
-The numbers must match the order pages are added to the stack in `pages.buildAll`
+The numbers must match the order pages are added to the stack in `pages.buildUi`
 (section 5). `@intFromEnum` converts the enum to the integer the stack wants.
+
+The theme button at the bottom is handed to `theme.attachButton` (theme.zig:30), so
+`theme.zig` owns its label text and click behavior (section 6).
 
 ### 4.3 Why globals?
 
-`nav_home`, `nav_text`, `stack`, … are `var` at module scope (main.zig:25–30). Qt
+`nav_home`, `nav_text`, `stack`, … are `var` at module scope (sidebar.zig:24–27). Qt
 signal callbacks in this codebase are plain functions with no context pointer, so
 the shared UI state lives in globals. Simple, if not elegant. `pages.zig` uses the
 same trick for the two forms (section 5.3).
@@ -359,52 +382,58 @@ same trick for the two forms (section 5.3).
 
 ## 5. The pages — `src/pages.zig`
 
-### 5.1 `buildAll` — the entry point
+### 5.1 `buildUi` — the entry point
 
 ```zig
-pub fn buildAll(g, app_io, win, s) void {   // pages.zig:77
-    gpa = g; io = app_io;                   // save allocator + IO for later
+pub fn buildUi(g, app_io, win, root_box) void {   // pages.zig:133
+    gpa = g; io = app_io;                         // save allocator + IO for later
     main_win = win;
-    stack = s;                              // the same stack from main.zig
+
+    stack = QStackedWidget.New2();
+    sidebar.init(stack);
+    sidebar.build(root_box);
+    root_box.AddWidget2(stack, 1);
+
     buildHome();
     buildText();
     buildFile();
     buildAbout();
-    stack.SetCurrentIndex(0);               // land on Home
+    sidebar.selectHome();                         // light up Home in the nav
 }
 ```
 
+`main.zig` calls `buildUi` and only then attaches the root widget to the window.
 Each `buildX` function constructs one page and appends it to the stack with
 `_ = stack.AddWidget(page);`. The append order **is** the page index (Home=0,
-Text=1, File=2, About=3) — matching `PageIndex` in both files.
+Text=1, File=2, About=3) — matching `PageIndex` in `sidebar.zig`.
 
 ### 5.2 Home — layout and the glowing title
 
-`buildHome` (pages.zig:89) builds a column layout:
+`buildHome` (pages.zig:150) builds a column layout:
 
 ```
 v = QBoxLayout(top → bottom) inside pageHome
 ├── stretch
 ├── title QLabel    "Oh My Crypto"   (animated glow)
-├── subtitle QLabel "Encrypt and decrypt text with six classical ciphers"
+├── subtitle QLabel "Encrypt, decrypt and hash text with classical and modern algorithms"
 ├── divider QLabel  (2px tall, gold)
 ├── (36px spacing)
-├── chipsHost QWidget (3×2 grid of cipher-name chips)
+├── chipsHost QWidget (grid of algorithm-name chips, 3 columns)
 ├── (12px spacing)
-├── note QLabel     "Classical ciphers for learning cryptography\n(not for real data)."
+├── note QLabel     "Classical ciphers and modern AEAD encryption with password key derivation\n(not for real data)."
 ├── stretch
 └── footer QLabel   "Educational tool"
 ```
 
 Two interesting bits.
 
-**Centered chips grid.** The six cipher names are placed in a `QGridLayout`
-(pages.zig:132) by computing row/column from the loop index:
+**Centered chips grid.** The algorithm names (all 11 classical ciphers) are placed
+in a `QGridLayout` (pages.zig:203) by computing row/column from the loop index:
 
 ```zig
 for (ciphers_list, 0..) |name, i| {
-    const row: i32 = @intCast(i / 3);   // 0,0,0,1,1,1
-    const col: i32 = @intCast(i % 3);   // 0,1,2,0,1,2
+    const row: i32 = @intCast(i / 3);   // 0,0,0,1,1,1,2,2,2,3,3
+    const col: i32 = @intCast(i % 3);   // 0,1,2,0,1,2,0,1,2,0,1
     const chip = QLabel.New5(name, chips_host);
     chip.SetObjectName("chip");         // styled as a rounded "pill"
     chips.AddWidget2(chip, row, col);
@@ -420,7 +449,7 @@ title_effect.SetBlurRadius(50);                        // wide soft glow
 title.SetGraphicsEffect(title_effect);                 // attach to the title
 ```
 
-plus a timer that repeatedly changes the blur radius (pages.zig:109):
+plus a timer that repeatedly changes the blur radius (pages.zig:170):
 
 ```zig
 title_timer = QTimer.New2(page);
@@ -430,7 +459,7 @@ title_timer.Start(80);
 ```
 
 ```zig
-fn onTitleGlow(self: QTimer) callconv(.c) void {   // pages.zig:491
+fn onTitleGlow(self: QTimer) callconv(.c) void {   // pages.zig:664
     _ = self;
     glow_phase += 0.18;
     const pulse = 0.5 + 0.5 * @sin(glow_phase);    // smoothly 0 → 1 → 0 → 1 …
@@ -443,24 +472,28 @@ animations.
 
 ### 5.3 The shared cipher form — `buildCipherForm`
 
-The Text page (encrypt typed text) and File page (encrypt a file) are almost the
+The Text page (process typed text) and File page (process a file) are almost the
 same. The author noticed this and built a **single reusable function**,
-`buildCipherForm` (pages.zig:343), called twice — once per page:
+`buildCipherForm` (pages.zig:433), called twice — once per page:
 
 ```zig
-const form = buildCipherForm(page, v, true);   // pages.zig:184  Text: input editable
-const form = buildCipherForm(page, v, false);  // pages.zig:230  File: input read-only
+const form = buildCipherForm(page, v, true);   // pages.zig:243  Text: input editable
+const form = buildCipherForm(page, v, false);  // pages.zig:307  File: input read-only
 ```
 
 The form is a stack of panels (see section 5.5 for the `newPanel` helper):
 
 ```
 "Cipher & Key" panel
-├── QComboBox   [Caesar | Multiplicative | Affine | Autokey | Vigenere | Zigzag]
+├── category QComboBox   [Classical | Modern | Hash]
+├── algorithm QComboBox  (repopulated when the category changes)
+├── modern row (QHBoxLayout)
+│   ├── password QLineEdit (masked; visible only for Modern)
+│   └── KDF QComboBox [Argon2id | PBKDF2-SHA256 | scrypt]  (visible only for Modern)
 └── key row (QHBoxLayout)
-    ├── keyword QLineEdit   (hidden unless Autokey/Vigenere)
-    ├── "Shift"/"key" QLabel + QSpinBox
-    └── "b"/"key 2" QLabel + QSpinBox   (visible only for Affine)
+    ├── keyword QLineEdit   (visible for keyword ciphers)
+    ├── "Shift"/"key"/"Rails" QLabel + QSpinBox
+    └── "key 2" QLabel + QSpinBox   (visible only for Affine)
 
 "Input" panel
 ├── QPlainTextEdit   (editable on Text page, read-only on File page)
@@ -475,12 +508,15 @@ status QLabel  (empty / green "statusOk" / red "statusErr")
 ```
 
 **UI state lives in a struct.** All the widgets the code needs to touch later are
-packed into `Form` (pages.zig:48):
+packed into `Form` (pages.zig:98):
 
 ```zig
 const Form = struct {
+    category: QComboBox,
     combo: QComboBox,
     keyword_edit: QLineEdit,
+    password_edit: QLineEdit,
+    kdf_combo: QComboBox,
     num1: QSpinBox,
     num2: QSpinBox,
     num1_label: QLabel,
@@ -492,12 +528,17 @@ const Form = struct {
     output_count: QLabel,
     copy_btn: QPushButton,
     swap_btn: QPushButton,
+    enc_btn: QPushButton = undefined,
+    dec_btn: QPushButton = undefined,
+    hash_btn: QPushButton = undefined,
 };
 ```
 
-The builder fills one in and returns it (pages.zig:421), and the caller stores it in
-a global: `text_form` (pages.zig:69) and `file_form` (pages.zig:70). Handlers look
-up which form they belong to by comparing `.ptr`:
+The builder fills one in and returns it, and the caller stores it in a global:
+`text_form` (pages.zig:125) and `file_form` (pages.zig:126). The action buttons
+(Encrypt / Decrypt / Hash) are created by the pages *after* the form, so the caller
+squirrels them into the struct and calls `updateActionButtons`. Handlers look up
+which form they belong to by comparing `.ptr`:
 
 ```zig
 fn onCipherChanged(self: QComboBox, index: i32) callconv(.c) void {
@@ -507,28 +548,53 @@ fn onCipherChanged(self: QComboBox, index: i32) callconv(.c) void {
 }
 ```
 
+The same trick distinguishes the two pages' category combos and buttons.
+
+**Category switching.** `onCategoryChanged` (pages.zig:570) runs
+`repopulateAlgorithmCombo` (pages.zig:584), which empties the algorithm combo and
+fills it from the matching name array:
+
+| Category | Name array (pages.zig) | Fills combo with |
+|---|---|---|
+| Classical | `classical_names` (51) | 11 classical ciphers |
+| Modern | `modern_names` (65) | 11 AEAD ciphers |
+| Hash | `hash_names` (79) | 16 hashes |
+
+`updateActionButtons` (pages.zig:598) then shows Encrypt/Decrypt for Classical and
+Modern, or the single **Hash** button for the Hash category.
+
 **Dynamic fields.** Different ciphers need different keys (a shift, a keyword, two
-numbers). `updateCipherFields` (pages.zig:447) shows/hides the right widgets based on
-the selected combo index:
+numbers). `updateCipherFields` (pages.zig:605) shows/hides the right widgets based on
+the category and the selected combo index:
 
-- index 3, 4 (Autokey/Vigenere) → show keyword edit, hide both spinboxes
-- index 2 (Affine) → show both spinboxes, label them "key 1" / "key 2"
-- index 0, 1 (Caesar/Multiplicative) → one spinbox, "Shift"/"key"
-- index 5 (Zigzag) → one spinbox, "Rails", range 2–10
+- category Modern → show password + KDF combo, hide the rest
+- category Hash → hide all key inputs
+- Classical, keyword ciphers (Autokey, Vigenère, Beaufort, Columnar, Bifid) → keyword edit
+- Affine → both spinboxes, labelled "key 1" / "key 2"
+- Caesar/Multiplicative → one spinbox, "Shift"/"key"
+- Zigzag → one spinbox, "Rails", range 2–10
+- Atbash/Rot13 → no key inputs at all
 
-It also re-ranges the spinboxes (pages.zig:470) so the numbers make sense per cipher
-(e.g. Zigzag rails can't be 0 or 1).
+It also re-ranges the spinboxes so the numbers make sense per cipher (e.g. Zigzag
+rails can't be 0 or 1).
 
 ### 5.4 Click → cipher → screen (the data flow)
 
 Pressing **Encrypt** on the Text page runs `onTextEncrypt` → `execute` → `doCipher`:
 
 ```
-click ─► onTextEncrypt(pages.zig:498)
-          │ execute(&text_form, .encrypt)          read input text (pages.zig:575)
+click ─► onTextEncrypt(pages.zig:671)
+          │ execute(&text_form, .encrypt)          read input text (pages.zig:757)
           ▼
-        doCipher(f, text, .encrypt) (pages.zig:594)
-          │  switch on combo index → pick cipher
+        category? Hash ─► doHash(f, text) (pages.zig:789)
+                          │  map combo index → modern.HashAlgo
+                          │  modern.hash(gpa, algo, text)   ← src/modern.zig
+          │ category? Modern ─► doModern(f, text, mode) (pages.zig:916)
+          │                     read password + KDF
+          │                     modern.encrypt / modern.decrypt   ← src/modern.zig
+          ▼
+        doCipher(f, text, mode) (pages.zig:812)
+          │  switch on combo index → pick one of 11 ciphers
           │  build cipher instance (e.g. Cipher(Caesar).init(...))
           │  cipher.encrypt(text, buf)             ← calls src/cipher.zig
           ▼
@@ -543,20 +609,21 @@ The other buttons follow the same shape:
 | Button | Handler | Does |
 |---|---|---|
 | Decrypt | `onTextDecrypt` / `onFileDecrypt` | same path, `mode = .decrypt` |
+| Hash | `onTextHash` / `onFileHash` | same path, category must be Hash |
 | Clear | `onTextClear` | empties input/output, resets counts |
 | Open Text File… | `onFileOpen` | `QFileDialog` → read file → fill input |
 | Save Result… | `onFileSave` | save output through `QFileDialog` |
 | Copy | `onCopy` | output → system clipboard (`QClipboard`) |
 | To Input | `onSwap` | output → input, clears output |
 
-Note the error pattern: user errors (empty input, invalid key) both set a red status
-line and pop a `QMessageBox` (pages.zig:583–585) — the status line is the quiet
-feedback, the dialog the loud one.
+Note the error pattern: user errors (empty input, invalid key, missing password)
+both set a red status line and pop a `QMessageBox` (pages.zig:773–781) — the status
+line is the quiet feedback, the dialog the loud one.
 
 ### 5.5 Reusable panels — `newPanel`
 
 The About page and the cipher form are made of repeated "box with a small gold
-caption" sections. `newPanel` (pages.zig:325) encapsulates that look:
+caption" sections. `newPanel` (pages.zig:415) encapsulates that look:
 
 ```zig
 fn newPanel(page, parent_layout, title_text, stretch) Panel {
@@ -577,22 +644,23 @@ fn newPanel(page, parent_layout, title_text, stretch) Panel {
 
 It returns a `Panel` struct so the caller can keep adding widgets to the panel's
 inner layout. The `header` field is public so the cipher form can inject extra
-buttons into the Output panel's header (the Copy / To Input buttons, pages.zig:403).
+buttons into the Output panel's header (the Copy / To Input buttons, pages.zig:525).
 
-About uses it for its four sections (pages.zig:269–312): intro, features, warning,
+About uses it for its four sections (pages.zig:344–407): intro, features, warning,
 license — each one a `newPanel` call plus a few `QLabel`s. Reuse beats repetition.
 
 ---
 
-## 6. Theming — `src/ayu_dark.qss`
+## 6. Theming — `src/themes/` + `src/theme.zig`
 
-The whole look comes from one QSS file. Three selector types matter here:
+The look comes from two QSS files (dark and light), both embedded at compile time
+by `src/style.zig` and applied by `src/theme.zig`. Three selector types matter here:
 
 **1. Type selector** — style every widget of that class:
 
 ```css
 QWidget {
-    background-color: #0b0e14;   /* app-wide background */
+    background-color: #0b0e14;   /* dark theme app-wide background */
     color: #bfc7d5;              /* default text color */
     font-size: 14px;
 }
@@ -609,8 +677,8 @@ QPushButton#navBtn { ... }
 QWidget#panel { background-color: #161b26; border-radius: 8px; }
 ```
 
-The chain in Zig: `title.SetObjectName("title")` (pages.zig:99) ↔
-`QLabel#title { ... }` (ayu_dark.qss:16).
+The chain in Zig: `title.SetObjectName("title")` (pages.zig:119) ↔
+`QLabel#title { ... }` (themes/ayu_dark.qss).
 
 **3. Pseudo-states** — style a widget depending on its state, written like CSS:
 
@@ -625,8 +693,17 @@ The sidebar "highlight the current page in gold" behavior is pure QSS: the nav
 buttons are *checkable*, the code checks exactly one of them (`selectNav`), and the
 `:checked` rule paints it gold with a left border.
 
-This file is a palette you can tweak freely. The buttons, panels, chips, scrollbars,
-dropdowns, spinbox arrows, tooltips, and message boxes are all styled here.
+**Switching themes.** `theme.zig` owns the toggle. On startup (`theme.init`,
+theme.zig:24) it reads the saved theme from `QSettings`, falls back to the system
+color scheme (`QGuiApplication.StyleHints().ColorScheme()`), and applies the matching
+QSS. The sidebar's theme button is attached via `theme.attachButton` (theme.zig:30);
+clicking it runs `onButtonClicked` (theme.zig:35), which flips the theme, reapplies
+the stylesheet, updates the button label, and persists the choice back to
+`QSettings`.
+
+The QSS files are palettes you can tweak freely. The buttons, panels, chips,
+scrollbars, dropdowns, spinbox arrows, tooltips, and message boxes are all styled
+here.
 
 ---
 
@@ -634,13 +711,14 @@ dropdowns, spinbox arrows, tooltips, and message boxes are all styled here.
 
 The pattern to copy for a fifth page:
 
-1. Add an entry to `PageIndex` in **both** main.zig and pages.zig.
+1. Add an entry to `PageIndex` in `src/sidebar.zig`.
 2. Write a `buildFoo()` in pages.zig: create a `QWidget` page, give it an object
    name, build a vertical layout, add widgets, `_ = stack.AddWidget(page);` at the end.
-3. Call it from `buildAll`.
-4. Add a nav button in `buildSidebar` (main.zig) + an `onNavFoo` handler calling
+3. Call it from `buildUi`.
+4. Add a nav button in `sidebar.build` + an `onNavFoo` handler calling
    `selectNav(&nav_foo)` and `stack.SetCurrentIndex(...)`.
-5. Style it via `SetObjectName` + a rule in `ayu_dark.qss`.
+5. Style it via `SetObjectName` + a rule in `themes/ayu_dark.qss` (and, ideally,
+   the light theme too).
 
 ---
 
