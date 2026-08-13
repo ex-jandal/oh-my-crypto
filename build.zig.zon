@@ -2,7 +2,7 @@
     .name = .oh_my_crypto,
     .full_name = "Oh My Crypto",
     .version = "0.2.2",
-    .descrption = "A desktop GUI utility for classical ciphers, written in Zig 0.16.0 with Qt 6.",
+    .descrption = "A desktop GUI utility for classical ciphers, modern AEAD encryption and hashing, written in Zig 0.16.0 with Qt 6.",
     .license = "MIT License",
     .fingerprint = 0x915f639e6896f245,
     .minimum_zig_version = "0.16.0",

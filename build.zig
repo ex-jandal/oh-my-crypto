@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) !void {
             },
         }),
     });
-    if (target.result.os.tag == .windows) 
+    if (target.result.os.tag == .windows)
         exe.subsystem = .windows;
 
     const qt6zig = b.dependency("libqt6zig", .{

@@ -42,7 +42,7 @@ pub fn build(root_box: QHBoxLayout) void {
     brand.SetObjectName("brand");
     v.AddWidget2(brand, 0);
 
-    const tagline = QLabel.New5("classical ciphers", sidebar);
+    const tagline = QLabel.New5("ciphers & hashes", sidebar);
     tagline.SetObjectName("brandTag");
     v.AddWidget2(tagline, 0);
 
