@@ -165,7 +165,7 @@ fn buildHome() void {
 
     v.AddStretch();
 
-    const title = QLabel.New5(config.full_name, page);
+    const title = QLabel.New5(tr("Oh My Crypto"), page);
     title.SetObjectName("title");
     title.SetAlignment(align_center);
     v.AddWidget2(title, 0);
@@ -363,7 +363,7 @@ fn buildAbout() void {
 
     v.AddSpacing(4);
 
-    const p_intro = newPanel(page, v, config.full_name, 0);
+    const p_intro = newPanel(page, v, tr("Oh My Crypto"), 0);
     const badge = QLabel.New5("v" ++ config.version, p_intro.panel);
     badge.SetObjectName("versionBadge");
     p_intro.header.AddWidget2(badge, 0);

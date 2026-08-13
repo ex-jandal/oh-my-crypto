@@ -6,6 +6,8 @@ const theme = @import("theme.zig");
 const i18n = @import("i18n.zig");
 const fonts = @import("assets");
 
+const tr = i18n.tr;
+
 const QApplication = qt6.QApplication;
 const QWidget = qt6.QWidget;
 const QMainWindow = qt6.QMainWindow;
@@ -40,7 +42,7 @@ pub fn main(init: std.process.Init) !void {
 
     main_win = QMainWindow.New2();
     defer main_win.Delete();
-    main_win.SetWindowTitle("Oh My Crypto");
+    main_win.SetWindowTitle(tr("Oh My Crypto"));
     main_win.SetMinimumSize2(820, 600);
     main_win.Resize(1040, 700);
 
@@ -64,4 +66,5 @@ fn rebuildUi() void {
     sidebar.sidebar_widget.Delete();
     pages.stack.Delete();
     pages.buildUi(gpa, io, main_win, root_box);
+    main_win.SetWindowTitle(tr("Oh My Crypto"));
 }
