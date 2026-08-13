@@ -44,6 +44,7 @@ pub fn build(b: *std.Build) !void {
         "qclipboard",
         "qcolor",
         "qcombobox",
+        "qcoreapplication",
         "qfiledialog",
         "qformlayout",
         "qgridlayout",
@@ -63,6 +64,7 @@ pub fn build(b: *std.Build) !void {
         "qstackedwidget",
         "qstylehints",
         "qtimer",
+        "qtranslator",
         "qvariant",
         "qwidget",
         "qfont",
@@ -84,6 +86,17 @@ pub fn build(b: *std.Build) !void {
     options.addOption([]const u8, "license", zon.license);
 
     exe.root_module.addOptions("config", options);
+
+    const lrelease_step = b.step("lrelease", "Recompile translation .ts files into .qm");
+    const languages = [_][]const u8{ "ar", "es" };
+    for (languages) |lang| {
+        const lrelease = b.addSystemCommand(&.{ "lrelease", "-nounfinished" });
+        lrelease.addFileArg(b.path(b.fmt("src/i18n/omc_{s}.ts", .{lang})));
+        lrelease.addArg("-qm");
+        lrelease.addFileArg(b.path(b.fmt("src/i18n/omc_{s}.qm", .{lang})));
+        lrelease_step.dependOn(&lrelease.step);
+        exe.step.dependOn(&lrelease.step);
+    }
 
     b.installArtifact(exe);
 
