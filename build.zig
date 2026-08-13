@@ -95,7 +95,6 @@ pub fn build(b: *std.Build) !void {
         lrelease.addArg("-qm");
         lrelease.addFileArg(b.path(b.fmt("src/i18n/omc_{s}.qm", .{lang})));
         lrelease_step.dependOn(&lrelease.step);
-        exe.step.dependOn(&lrelease.step);
     }
 
     b.installArtifact(exe);
