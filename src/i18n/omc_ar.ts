@@ -5,7 +5,7 @@
     <name></name>
     <message>
         <source>Oh My Crypto</source>
-        <translation>ياللشفرة!</translation>
+        <translation>ياللشفــــــرة!</translation>
     </message>
     <message>
         <source>Encrypt, decrypt and hash text with classical and modern algorithms</source>
