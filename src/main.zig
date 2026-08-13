@@ -33,6 +33,11 @@ pub fn main(init: std.process.Init) !void {
     _ = QFontDatabase.AddApplicationFontFromData(@constCast(fonts.rubik_italic));
     QApplication.SetFont(QFont.New6("Rubik", 12));
 
+    const pid = QFontDatabase.AddApplicationFontFromData(@constCast(fonts.panorama));
+    const fams = QFontDatabase.ApplicationFontFamilies(init.arena.allocator(), pid);
+    if (fams.len == 0 or !std.mem.eql(u8, fams[0], fonts.panorama_family))
+        @panic("PanoramaNaskh font family mismatch");
+
     gpa = init.gpa;
     io = init.io;
 
