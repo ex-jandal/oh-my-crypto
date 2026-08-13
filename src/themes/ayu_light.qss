@@ -20,7 +20,14 @@ QLabel#title {
     font-size: 44px;
     font-weight: 700;
     letter-spacing: 1px;
-    height: 50px;
+    height: 70px;
+}
+
+QLabel#title[arabic="true"] {
+    font-family: "PanoramaNaskh";
+    font-size: 70px;
+    font-weight: 400;
+    letter-spacing: 0px;
 }
 
 QLabel#subtitle {
@@ -105,6 +112,13 @@ QLabel#brand {
     font-size: 17px;
     font-weight: 700;
     padding: 0 8px;
+}
+
+QLabel#brand[arabic="true"] {
+    font-family: "PanoramaNaskh";
+    font-size: 20px;
+    font-weight: 400;
+    letter-spacing: 0px;
 }
 
 QLabel#brandTag {
