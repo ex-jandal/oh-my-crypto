@@ -36,6 +36,10 @@
         <translation>Procesar archivo de texto</translation>
     </message>
     <message>
+        <source>Hash</source>
+        <translation>Hash</translation>
+    </message>
+    <message>
         <source>Open Text File...</source>
         <translation>Abrir archivo de texto...</translation>
     </message>
