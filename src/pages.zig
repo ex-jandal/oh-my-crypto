@@ -177,13 +177,13 @@ fn buildHome() void {
     title_effect = QGraphicsDropShadowEffect.New2(page);
     title_effect.SetColor(QColor.New5(0xe6, 0xb4, 0x50));
     title_effect.SetOffset3(0);
-    title_effect.SetBlurRadius(50);
+    title_effect.SetBlurRadius(70);
     title.SetGraphicsEffect(title_effect);
 
     title_timer = QTimer.New2(page);
-    title_timer.SetInterval(80);
+    title_timer.SetInterval(40);
     title_timer.OnTimeout(onTitleGlow);
-    title_timer.Start(80);
+    title_timer.Start(40);
 
     const subtitle = QLabel.New5(
         tr("Encrypt, decrypt and hash text with classical and modern algorithms"),
