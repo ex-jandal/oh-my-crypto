@@ -1,7 +1,7 @@
 .{
     .name = .oh_my_crypto,
     .full_name = "Oh My Crypto",
-    .version = "0.3.2",
+    .version = "0.3.3",
     .descrption = "A desktop GUI utility for classical ciphers, modern AEAD encryption and hashing, written in Zig 0.16.0 with Qt 6.",
     .license = "MIT License",
     .fingerprint = 0x915f639e6896f245,
