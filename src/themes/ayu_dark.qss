@@ -21,6 +21,7 @@ QLabel#title {
     font-weight: 700;
     letter-spacing: 1px;
     height: 70px;
+    padding: 20px 0;
 }
 
 QLabel#title[arabic="true"] {
@@ -112,7 +113,7 @@ QLabel#brand {
     color: #e6e1cf;
     font-size: 17px;
     font-weight: 700;
-    padding: 0 8px;
+    padding: 4px 8px;
 }
 
 QLabel#brand[arabic="true"] {
