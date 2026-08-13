@@ -88,7 +88,7 @@ pub fn build(b: *std.Build) !void {
     exe.root_module.addOptions("config", options);
 
     const lrelease_step = b.step("lrelease", "Recompile translation .ts files into .qm");
-    const languages = [_][]const u8{ "ar", "es" };
+    const languages = [_][]const u8{ "ar", "es", "tr", "ru", "de" };
     for (languages) |lang| {
         const lrelease = b.addSystemCommand(&.{ "lrelease", "-nounfinished" });
         lrelease.addFileArg(b.path(b.fmt("src/i18n/omc_{s}.ts", .{lang})));

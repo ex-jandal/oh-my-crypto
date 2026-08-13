@@ -12,12 +12,18 @@ pub const Language = enum {
     en,
     ar,
     es,
+    tr,
+    ru,
+    de,
 
     pub fn code(self: Language) []const u8 {
         return switch (self) {
             .en => "en",
             .ar => "ar",
             .es => "es",
+            .tr => "tr",
+            .ru => "ru",
+            .de => "de",
         };
     }
 
@@ -26,6 +32,9 @@ pub const Language = enum {
             .en => "English",
             .ar => "العربية",
             .es => "Español",
+            .tr => "Türkçe",
+            .ru => "Русский",
+            .de => "Deutsch",
         };
     }
 
@@ -43,6 +52,9 @@ const left_to_right: i32 = 0; // Qt.LeftToRight
 
 const ar_qm = @embedFile("i18n/omc_ar.qm");
 const es_qm = @embedFile("i18n/omc_es.qm");
+const tr_qm = @embedFile("i18n/omc_tr.qm");
+const ru_qm = @embedFile("i18n/omc_ru.qm");
+const de_qm = @embedFile("i18n/omc_de.qm");
 
 var current: Language = .en;
 var arena: std.heap.ArenaAllocator = undefined;
@@ -90,6 +102,9 @@ fn installTranslator() void {
         .en => true,
         .ar => translator.Load3(@ptrCast(ar_qm.ptr), @intCast(ar_qm.len)),
         .es => translator.Load3(@ptrCast(es_qm.ptr), @intCast(es_qm.len)),
+        .tr => translator.Load3(@ptrCast(tr_qm.ptr), @intCast(tr_qm.len)),
+        .ru => translator.Load3(@ptrCast(ru_qm.ptr), @intCast(ru_qm.len)),
+        .de => translator.Load3(@ptrCast(de_qm.ptr), @intCast(de_qm.len)),
     };
     if (loaded) {
         _ = QApplication.InstallTranslator(translator);
@@ -117,6 +132,9 @@ fn loadSavedLanguage() Language {
 
     if (std.mem.eql(u8, saved, "ar")) return .ar;
     if (std.mem.eql(u8, saved, "es")) return .es;
+    if (std.mem.eql(u8, saved, "tr")) return .tr;
+    if (std.mem.eql(u8, saved, "ru")) return .ru;
+    if (std.mem.eql(u8, saved, "de")) return .de;
     return .en;
 }
 
