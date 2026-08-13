@@ -35,6 +35,7 @@ pub fn main(init: std.process.Init) !void {
     io = init.io;
 
     i18n.init(gpa);
+    defer i18n.deinit();
     theme.init(gpa, qapp);
 
     main_win = QMainWindow.New2();

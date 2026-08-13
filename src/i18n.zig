@@ -80,6 +80,10 @@ pub fn allocator() std.mem.Allocator {
     return arena.allocator();
 }
 
+pub fn deinit() void {
+    arena.deinit();
+}
+
 fn installTranslator() void {
     translator = QTranslator.New();
     const loaded = switch (current) {
