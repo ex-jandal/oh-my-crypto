@@ -14,6 +14,7 @@ const QTimer = qt6.QTimer;
 const QBoxLayout = qt6.QBoxLayout;
 const QHBoxLayout = qt6.QHBoxLayout;
 const QStackedWidget = qt6.QStackedWidget;
+const QVariant = qt6.QVariant;
 
 pub const PageIndex = enum(i32) {
     home = 0,
@@ -46,8 +47,11 @@ pub fn build(root_box: QHBoxLayout) void {
     v.SetContentsMargins(16, 28, 16, 20);
     v.SetSpacing(4);
 
-    const brand = QLabel.New5(config.full_name, sidebar_widget);
+    const brand = QLabel.New5(tr("Oh My Crypto"), sidebar_widget);
     brand.SetObjectName("brand");
+    if (i18n.selected().isRtl()) {
+        _ = brand.SetProperty("arabic", QVariant.New8(true));
+    }
     v.AddWidget2(brand, 0);
 
     const tagline = QLabel.New5(tr("ciphers & hashes"), sidebar_widget);
