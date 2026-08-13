@@ -4,6 +4,10 @@
 <context>
     <name></name>
     <message>
+        <source>Oh My Crypto</source>
+        <translation>ياللشفرة!</translation>
+    </message>
+    <message>
         <source>Encrypt, decrypt and hash text with classical and modern algorithms</source>
         <translation>شفر وفك تشفير وقم بتجزئة النصوص بخوارزميات كلاسيكية وحديثة</translation>
     </message>
