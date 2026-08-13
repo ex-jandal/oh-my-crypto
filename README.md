@@ -98,6 +98,28 @@ emit 256-bit outputs.
 - Dark and light themes (Ayu), persisted across runs and matched to the system scheme
 - Invalid keys and other errors reported in the status line and message dialogs
 
+## Internationalization
+
+The UI is translated with Qt's `QTranslator` + `.qm` catalogs. English (`en`),
+Arabic (`ar`) and Spanish (`es`) ship out of the box. The active language is
+persisted in `QSettings` and remembered on the next start; switching language in
+the sidebar combo rebuilds the UI in place. Arabic enables right-to-left layout
+and loads the Rubik font with Arabic glyph coverage.
+
+- `src/i18n.zig` — language enum, `tr()` helper, `setLanguage`, RTL + translator wiring
+- `src/i18n/omc_<lang>.ts` — XML translation source (author this)
+- `src/i18n/omc_<lang>.qm` — compiled catalog, embedded at build time; regenerate with `zig build lrelease`
+- UI labels go through `tr("...")`; a missing translation falls back to English
+
+### Adding a language
+
+1. Copy `src/i18n/omc_es.ts` to `src/i18n/omc_<lang>.ts` and translate the `<source>` texts.
+2. Add the language to the `Language` enum in `src/i18n.zig` (English locale code, e.g. `.fr` for French) and to the `codes` array used for the `.ts`/`.qm` file names.
+3. Add a `tr("LanguageName")` entry to every `.ts` — it drives the sidebar combo label.
+4. Ensure the chosen UI font has glyphs for the script (e.g. Arabic needs a font like Rubik loaded in `main.zig`).
+5. Run `zig build lrelease` to regenerate the `.qm`, then commit both the `.ts` and the `.qm` — the embedded `.qm` (not a build-time `lrelease` run) is what ships.
+
+
 ## Requirements
 
 - Zig **0.16.0** (latest stable)
@@ -130,8 +152,10 @@ src/
   cipher.zig       # 11 classical ciphers (encrypt/decrypt + tests)
   modern.zig       # modern AEAD, KDFs and hashes (encrypt/decrypt/hash + tests)
   pages.zig        # GUI pages, widget state, and signal callbacks
-  sidebar.zig      # sidebar navigation (Home / Text / File / About)
+  sidebar.zig      # sidebar navigation (Home / Text / File / About) + language combo
   theme.zig        # dark/light theme switching + persistence
+  i18n.zig         # tr(), language switching, RTL, QTranslator wiring
+  i18n/            # translation sources (.ts) and compiled catalogs (.qm)
   style.zig        # embeds the QSS stylesheets
   themes/          # ayu_dark.qss, ayu_light.qss
   assets/          # embedded Rubik font (assets/fonts.zig)
