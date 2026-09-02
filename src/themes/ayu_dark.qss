@@ -99,6 +99,20 @@ QLabel#statusErr {
     padding: 2px 4px;
 }
 
+QLabel#fieldLabel {
+    color: #8a94a6;
+    font-size: 13px;
+    font-weight: 600;
+    padding-top: 8px;
+}
+
+QLabel#imagePreview {
+    background: #10141a;
+    border: 1px solid #232a33;
+    border-radius: 8px;
+    color: #5c6773;
+}
+
 QLabel#divider {
     background-color: #e6b450;
     border-radius: 1px;

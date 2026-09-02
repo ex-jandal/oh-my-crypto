@@ -20,7 +20,8 @@ pub const PageIndex = enum(i32) {
     home = 0,
     text = 1,
     file = 2,
-    about = 3,
+    images = 3,
+    about = 4,
 };
 
 const top_to_bottom: i32 = 2;
@@ -31,6 +32,7 @@ pub var sidebar_widget: QWidget = undefined;
 var nav_home: QPushButton = undefined;
 var nav_text: QPushButton = undefined;
 var nav_file: QPushButton = undefined;
+var nav_images: QPushButton = undefined;
 var nav_about: QPushButton = undefined;
 
 var lang_timer: QTimer = undefined;
@@ -71,6 +73,10 @@ pub fn build(root_box: QHBoxLayout) void {
     nav_file = newNav(sidebar_widget, tr("File"));
     nav_file.OnClicked(onNavFile);
     v.AddWidget2(nav_file, 0);
+
+    nav_images = newNav(sidebar_widget, tr("Images"));
+    nav_images.OnClicked(onNavImages);
+    v.AddWidget2(nav_images, 0);
 
     nav_about = newNav(sidebar_widget, tr("About"));
     nav_about.OnClicked(onNavAbout);
@@ -113,6 +119,7 @@ fn selectNav(active: *const QPushButton) void {
     nav_home.SetChecked(nav_home.ptr == active.ptr);
     nav_text.SetChecked(nav_text.ptr == active.ptr);
     nav_file.SetChecked(nav_file.ptr == active.ptr);
+    nav_images.SetChecked(nav_images.ptr == active.ptr);
     nav_about.SetChecked(nav_about.ptr == active.ptr);
 }
 
@@ -136,6 +143,12 @@ fn onNavFile(self: QPushButton) callconv(.c) void {
     _ = self;
     selectNav(&nav_file);
     stack.SetCurrentIndex(@intFromEnum(PageIndex.file));
+}
+
+fn onNavImages(self: QPushButton) callconv(.c) void {
+    _ = self;
+    selectNav(&nav_images);
+    stack.SetCurrentIndex(@intFromEnum(PageIndex.images));
 }
 
 fn onNavAbout(self: QPushButton) callconv(.c) void {

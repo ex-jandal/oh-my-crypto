@@ -64,6 +64,8 @@ pub fn main(init: std.process.Init) !void {
 
     _ = QApplication.Exec();
 
+    pages.cleanup();
+
     try std.Io.File.stdout().writeStreamingAll(init.io, "OK!\n");
 }
 

@@ -29,6 +29,22 @@ pub fn build(b: *std.Build) !void {
         .optimize = .ReleaseFast,
     });
 
+    const zigimg = b.dependency("zigimg", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("zigimg", zigimg.module("zigimg"));
+
+    const stegano_mod = b.createModule(.{
+        .root_source_file = b.path("src/stegano.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "zigimg", .module = zigimg.module("zigimg") },
+        },
+    });
+    exe.root_module.addImport("stegano", stegano_mod);
+
     const asset_mod = b.createModule(.{
         .root_source_file = b.path("assets/fonts.zig"),
     });
@@ -69,6 +85,8 @@ pub fn build(b: *std.Build) !void {
         "qwidget",
         "qfont",
         "qfontdatabase",
+        "qimage",
+        "qpixmap",
     };
 
     inline for (required_artifacts) |art| {

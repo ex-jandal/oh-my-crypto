@@ -5,12 +5,14 @@ const ciphers = @import("oh_my_crypto").cipher;
 const modern = @import("oh_my_crypto").modern;
 const sidebar = @import("sidebar.zig");
 const i18n = @import("i18n.zig");
+const stegano = @import("stegano");
 
 const tr = i18n.tr;
 
 const QApplication = qt6.QApplication;
 const QWidget = qt6.QWidget;
 const QPushButton = qt6.QPushButton;
+const QAbstractButton = qt6.QAbstractButton;
 const QLabel = qt6.QLabel;
 const QLineEdit = qt6.QLineEdit;
 const QSpinBox = qt6.QSpinBox;
@@ -27,6 +29,8 @@ const QMessageBox = qt6.QMessageBox;
 const QTimer = qt6.QTimer;
 const QColor = qt6.QColor;
 const QVariant = qt6.QVariant;
+const QImage = qt6.QImage;
+const QPixmap = qt6.QPixmap;
 const QGraphicsDropShadowEffect = qt6.QGraphicsDropShadowEffect;
 
 const Cipher = ciphers.Cipher;
@@ -136,6 +140,14 @@ var text_form: Form = undefined;
 var file_form: Form = undefined;
 var file_path_label: QLabel = undefined;
 
+var image_managed: stegano.ImageHandle = undefined;
+var image_loaded: bool = false;
+var image_modified: bool = false;
+var image_path_label: QLabel = undefined;
+var image_preview: QLabel = undefined;
+var image_text: QPlainTextEdit = undefined;
+var image_status: QLabel = undefined;
+
 var title_effect: QGraphicsDropShadowEffect = undefined;
 var title_timer: QTimer = undefined;
 var glow_phase: f64 = 0;
@@ -153,8 +165,16 @@ pub fn buildUi(g: std.mem.Allocator, app_io: std.Io, win: QMainWindow, root_box:
     buildHome();
     buildText();
     buildFile();
+    buildImages();
     buildAbout();
     sidebar.selectHome();
+}
+
+pub fn cleanup() void {
+    if (image_loaded) {
+        stegano.deinit(&image_managed);
+        image_loaded = false;
+    }
 }
 
 fn buildHome() void {
@@ -352,6 +372,199 @@ fn buildFile() void {
     v.AddLayout2(save_row, 0);
 
     _ = stack.AddWidget(page);
+}
+
+fn buildImages() void {
+    const page = QWidget.New2();
+    page.SetObjectName("pageImages");
+    const v = QBoxLayout.New2(top_to_bottom, page);
+    v.SetContentsMargins(28, 24, 28, 24);
+    v.SetSpacing(12);
+
+    const heading = QLabel.New5(tr("Hide Text in Image"), page);
+    heading.SetObjectName("heading");
+    v.AddWidget2(heading, 0);
+
+    const open_row = QHBoxLayout.New(page);
+    const btn_open = QPushButton.New5(tr("Open Image..."), page);
+    btn_open.SetObjectName("primaryBtn");
+    btn_open.OnClicked(onImageOpen);
+    open_row.AddWidget2(btn_open, 0);
+
+    image_path_label = QLabel.New5(tr("No image loaded"), page);
+    image_path_label.SetObjectName("status");
+    image_path_label.SetWordWrap(true);
+    open_row.AddWidget2(image_path_label, 1);
+    v.AddLayout2(open_row, 0);
+
+    image_preview = QLabel.New(page);
+    image_preview.SetObjectName("imagePreview");
+    image_preview.SetAlignment(align_center);
+    image_preview.SetMinimumSize2(320, 240);
+    v.AddWidget2(image_preview, 1);
+
+    const msg_label = QLabel.New5(tr("Message to hide"), page);
+    msg_label.SetObjectName("fieldLabel");
+    v.AddWidget2(msg_label, 0);
+
+    image_text = QPlainTextEdit.New(page);
+    image_text.SetObjectName("input");
+    image_text.SetPlaceholderText(tr("Enter the secret text..."));
+    image_text.SetMaximumHeight(90);
+    v.AddWidget2(image_text, 0);
+
+    const btns = QHBoxLayout.New(page);
+    const btn_embed = QPushButton.New5(tr("Hide Text"), page);
+    btn_embed.SetObjectName("primaryBtn");
+    btn_embed.OnClicked(onImageEmbed);
+    btns.AddWidget2(btn_embed, 1);
+
+    const btn_extract = QPushButton.New5(tr("Extract Text"), page);
+    btn_extract.SetObjectName("secondaryBtn");
+    btn_extract.OnClicked(onImageExtract);
+    btns.AddWidget2(btn_extract, 1);
+
+    const btn_save = QPushButton.New5(tr("Save Image..."), page);
+    btn_save.SetObjectName("secondaryBtn");
+    btn_save.OnClicked(onImageSave);
+    btns.AddWidget2(btn_save, 1);
+    v.AddLayout2(btns, 0);
+
+    image_status = QLabel.New5("", page);
+    image_status.SetObjectName("status");
+    image_status.SetWordWrap(true);
+    v.AddWidget2(image_status, 0);
+
+    _ = stack.AddWidget(page);
+}
+
+fn onImageOpen(self: QPushButton) callconv(.c) void {
+    _ = self;
+    const path = QFileDialog.GetOpenFileName4(
+        gpa,
+        main_win,
+        tr("Open Image"),
+        "",
+        "Images (*.png *.bmp *.tga *.qoi);;All files (*)",
+    );
+    if (path.len == 0) return;
+    defer gpa.free(path);
+
+    loadImageFile(path) catch |err| {
+        image_path_label.SetText(tr("Failed to load image."));
+        _ = QMessageBox.Information(main_win, tr("Open Image"), @errorName(err));
+        return;
+    };
+    image_modified = false;
+    image_status.SetText(tr("Image loaded. Type a message and press 'Hide Text'."));
+}
+
+fn loadImageFile(path: []const u8) !void {
+    if (image_loaded) stegano.deinit(&image_managed);
+
+    const qimg = QImage.New9(path);
+    if (qimg.IsNull()) return error.LoadFailed;
+
+    const rgba = qimg.ConvertToFormat(17);
+    const w: usize = @intCast(rgba.Width());
+    const h: usize = @intCast(rgba.Height());
+    const bits = rgba.Bits() orelse return error.LoadFailed;
+    const byte_count = w * h * 4;
+    const pixels = try gpa.alloc(u8, byte_count);
+    defer gpa.free(pixels);
+    const src: [*]const u8 = @ptrCast(bits);
+    @memcpy(pixels, src[0..byte_count]);
+
+    try stegano.loadFromRaw(gpa, pixels, w, h, &image_managed);
+    image_loaded = true;
+    renderImage();
+    image_path_label.SetText(path);
+}
+
+fn renderImage() void {
+    if (!image_loaded) {
+        image_preview.Clear();
+        return;
+    }
+    stegano.toRgba32(&image_managed) catch return;
+    const px = stegano.rgbaBytes(&image_managed);
+    showPreview(px, stegano.width(&image_managed), stegano.height(&image_managed));
+}
+
+fn showPreview(rgba: []const u8, w: i32, h: i32) void {
+    if (rgba.len == 0) return;
+    const qi = QImage.New5(&rgba[0], w, h, 17);
+    const scaled = qi.ScaledToWidth2(460, 1);
+    const pm = QPixmap.FromImage(scaled);
+    image_preview.SetPixmap(pm);
+}
+
+fn onImageExtract(self: QPushButton) callconv(.c) void {
+    _ = self;
+    if (!image_loaded) {
+        image_status.SetText(tr("Load an image first."));
+        return;
+    }
+    const msg = stegano.extract(gpa, &image_managed) catch {
+        image_status.SetText(tr("Nothing to extract."));
+        return;
+    };
+    defer gpa.free(msg);
+    image_text.SetPlainText(msg);
+    image_status.SetText(tr("Message extracted."));
+}
+
+fn onImageEmbed(self: QPushButton) callconv(.c) void {
+    _ = self;
+    if (!image_loaded) {
+        image_status.SetText(tr("Load an image first."));
+        return;
+    }
+    const text = image_text.ToPlainText(gpa);
+    if (text.len == 0) {
+        gpa.free(text);
+        image_status.SetText(tr("Enter a message to hide."));
+        return;
+    }
+    stegano.embed(&image_managed, text) catch {
+        gpa.free(text);
+        image_status.SetText(tr("Message too long for this image."));
+        return;
+    };
+    gpa.free(text);
+    image_modified = true;
+    renderImage();
+    image_status.SetText(tr("Text hidden in image. Save it to keep changes."));
+}
+
+fn onImageSave(self: QPushButton) callconv(.c) void {
+    _ = self;
+    if (!image_loaded) {
+        image_status.SetText(tr("Load an image first."));
+        return;
+    }
+    const path = QFileDialog.GetSaveFileName3(gpa, main_win, tr("Save Image"), "stego.png");
+    if (path.len == 0) return;
+    defer gpa.free(path);
+
+    stegano.toRgba32(&image_managed) catch {
+        image_status.SetText(tr("Failed to save image."));
+        return;
+    };
+    const w: i32 = stegano.width(&image_managed);
+    const h: i32 = stegano.height(&image_managed);
+    const bytes = stegano.rgbaBytes(&image_managed);
+    if (bytes.len < @as(usize, @intCast(w * h * 4))) {
+        image_status.SetText(tr("Failed to save image."));
+        return;
+    }
+    const qimg = QImage.New5(&bytes[0], w, h, 17);
+    if (!qimg.Save3(path, "PNG", 100)) {
+        image_status.SetText(tr("Failed to save image."));
+        _ = QMessageBox.Information(main_win, tr("Save Image"), tr("Failed to save image."));
+        return;
+    }
+    image_status.SetText(tr("Image saved."));
 }
 
 fn buildAbout() void {
