@@ -64,7 +64,7 @@
         <translation>Возможности</translation>
     </message>
     <message>
-        <source>•  Eleven classical ciphers: Caesar, Multiplicative, Affine, Autokey, Vigenere, Zigzag, Atbash, Rot13, Beaufort, Columnar, Bifid</source>
+        <source>•  Twelve classical ciphers: Caesar, Multiplicative, Affine, Autokey, Vigenere, Zigzag, Atbash, Rot13, Beaufort, Columnar, Bifid, DES</source>
         <translation>•  Одиннадцать классических шифров: Цезарь, мультипликативный, аффинный, авто-ключ, Виженер, зигзаг, Атбаш, ROT-13, Бофорт, столбцовая перестановка, Бифид</translation>
     </message>
     <message>

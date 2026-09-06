@@ -45,6 +45,7 @@ const Rot13 = ciphers.Rot13;
 const Beaufort = ciphers.Beaufort;
 const ColumnarTransposition = ciphers.ColumnarTransposition;
 const Bifid = ciphers.Bifid;
+const DesEcb = ciphers.DesEcb;
 
 const align_center: i32 = 132;
 pub const top_to_bottom: i32 = 2;
@@ -68,6 +69,7 @@ const classical_names = [_][:0]const u8{
     "Beaufort",
     "Columnar Transposition",
     "Bifid",
+    "DES",
 };
 
 const modern_names = [_][:0]const u8{
@@ -119,6 +121,8 @@ const Form = struct {
     num2: QSpinBox,
     num1_label: QLabel,
     num2_label: QLabel,
+    des_encoding: QComboBox = undefined,
+    des_label: QLabel = undefined,
     input: QPlainTextEdit,
     output: QPlainTextEdit,
     status: QLabel,
@@ -238,6 +242,7 @@ fn buildHome() void {
         "Beaufort",
         "Columnar",
         "Bifid",
+        "DES",
     };
     for (ciphers_list, 0..) |name, i| {
         const row: i32 = @intCast(i / 3);
@@ -595,7 +600,7 @@ fn buildAbout() void {
 
     const p_feat = newPanel(page, v, tr("Features"), 0);
     const bullets = [_][]const u8{
-        tr("•  Eleven classical ciphers: Caesar, Multiplicative, Affine, Autokey, Vigenere, Zigzag, Atbash, Rot13, Beaufort, Columnar, Bifid"),
+        tr("•  Twelve classical ciphers: Caesar, Multiplicative, Affine, Autokey, Vigenere, Zigzag, Atbash, Rot13, Beaufort, Columnar, Bifid, DES"),
         tr("•  Eleven modern AEAD algorithms (XChaCha20, ChaCha20, AES-GCM, AEGIS and more) keyed from a password via Argon2id, PBKDF2 or scrypt"),
         tr("•  Sixteen hash algorithms: SHA-1/2/3, SHAKE, BLAKE2, BLAKE3, MD5"),
         tr("•  Encrypt or decrypt typed text, hash it, or process .txt files"),
@@ -722,6 +727,20 @@ fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: boo
 
     p_cipher.v.AddLayout2(key_row, 0);
 
+    const des_row = QHBoxLayout.New(p_cipher.panel);
+    const des_label = QLabel.New5(tr("Ciphertext format"), p_cipher.panel);
+    des_label.SetObjectName("keyLabel");
+    des_label.SetVisible(false);
+    des_row.AddWidget2(des_label, 0);
+    const des_encoding = QComboBox.New(p_cipher.panel);
+    des_encoding.AddItem(algoLabel("Base64"));
+    des_encoding.AddItem(algoLabel("Hex"));
+    des_encoding.SetFixedHeight(32);
+    des_encoding.SetVisible(false);
+    des_row.AddWidget2(des_encoding, 1);
+    des_row.AddStretch();
+    p_cipher.v.AddLayout2(des_row, 0);
+
     const scroll_host = QScrollArea.New2();
     scroll_host.SetObjectName("scrollArea");
     scroll_host.SetWidgetResizable(true);
@@ -781,6 +800,8 @@ fn buildCipherForm(page: QWidget, parent_layout: QBoxLayout, editable_input: boo
         .num2 = num2,
         .num1_label = num1_label,
         .num2_label = num2_label,
+        .des_encoding = des_encoding,
+        .des_label = des_label,
         .input = input,
         .output = output,
         .status = status,
@@ -843,19 +864,29 @@ fn updateCipherFields(f: Form) void {
     f.num1.SetVisible(false);
     f.num2_label.SetVisible(false);
     f.num2.SetVisible(false);
+    f.des_encoding.SetVisible(false);
+    f.des_label.SetVisible(false);
 
     if (is_modern or is_hash) return;
 
     const idx = f.combo.CurrentIndex();
-    const use_keyword = idx == 3 or idx == 4 or idx == 8 or idx == 9 or idx == 10;
+    const is_des = idx == 11;
+    const use_keyword = idx == 3 or idx == 4 or idx == 8 or idx == 9 or idx == 10 or is_des;
     const use_num2 = idx == 2;
-    const use_num1 = idx != 3 and idx != 4 and idx != 8 and idx != 9 and idx != 10;
+    const use_num1 = idx != 3 and idx != 4 and idx != 8 and idx != 9 and idx != 10 and idx != 11;
 
     f.keyword_edit.SetVisible(use_keyword);
     f.num1_label.SetVisible(use_num1);
     f.num1.SetVisible(use_num1);
     f.num2_label.SetVisible(use_num2);
     f.num2.SetVisible(use_num2);
+    if (is_des) {
+        f.des_encoding.SetVisible(true);
+        f.des_label.SetVisible(true);
+        f.keyword_edit.SetPlaceholderText(tr("DES key (exactly 8 characters)"));
+    } else {
+        f.keyword_edit.SetPlaceholderText(tr("Keyword (letters only)"));
+    }
 
     const num1_text = switch (idx) {
         0 => tr("Shift"),
@@ -982,34 +1013,96 @@ fn onFileSave(self: QPushButton) callconv(.c) void {
     setStatus(&file_form, true, tr("Saved."));
 }
 
+fn hexVal(c: u8) u8 {
+    return switch (c) {
+        '0'...'9' => c - '0',
+        'a'...'f' => c - 'a' + 10,
+        'A'...'F' => c - 'A' + 10,
+        else => 0,
+    };
+}
+
+fn encodeDesOutput(f: *Form, bytes: []const u8) ![]u8 {
+    if (f.des_encoding.CurrentIndex() == 1) {
+        const hex = "0123456789ABCDEF";
+        const out = try gpa.alloc(u8, bytes.len * 2);
+        for (bytes, 0..) |b, i| {
+            out[i * 2] = hex[@as(usize, b >> 4)];
+            out[i * 2 + 1] = hex[@as(usize, b & 0xf)];
+        }
+        return out;
+    }
+    const enc = std.base64.standard.Encoder;
+    const out = try gpa.alloc(u8, enc.calcSize(bytes.len));
+    _ = enc.encode(out, bytes);
+    return out;
+}
+
+fn decodeDesInput(f: *Form, text: []const u8) ![]u8 {
+    if (f.des_encoding.CurrentIndex() == 1) {
+        if (text.len % 2 != 0) return error.InvalidEncoding;
+        const out = try gpa.alloc(u8, text.len / 2);
+        for (0..out.len) |i| {
+            out[i] = (hexVal(text[i * 2]) << 4) | hexVal(text[i * 2 + 1]);
+        }
+        return out;
+    }
+    const dec = std.base64.standard.Decoder;
+    const size = try dec.calcSizeForSlice(text);
+    const out = try gpa.alloc(u8, size);
+    try dec.decode(out, text);
+    return out;
+}
+
 fn execute(f: *Form, mode: Mode) void {
-    const text = f.input.ToPlainText(gpa);
-    defer gpa.free(text);
-    if (text.len == 0) {
+    const text0 = f.input.ToPlainText(gpa);
+    defer gpa.free(text0);
+    if (text0.len == 0) {
         setStatus(f, false, tr("Nothing to process. Enter some text or load a file."));
         return;
     }
 
+    const is_des = f.category.CurrentIndex() == 0 and f.combo.CurrentIndex() == 11;
     const is_hash = f.category.CurrentIndex() == 2;
-    const out = if (is_hash)
-        doHash(f, text) catch |err| {
-            setStatus(f, false, tr("Hash failed."));
-            _ = QMessageBox.Information(main_win, tr("Crypto Error"), @errorName(err));
+
+    const text = if (is_des and mode == .decrypt)
+        decodeDesInput(f, text0) catch {
+            setStatus(f, false, tr("Invalid base64/hex input."));
             return;
         }
     else
-        doCipher(f, text, mode) catch |err| {
-            const msg = if (err == error.NoPasswordProvided)
-                tr("Enter a password for the selected algorithm.")
-            else
-                tr("Invalid key or input for the selected algorithm.");
-            setStatus(f, false, msg);
+        text0;
+    defer if (is_des and mode == .decrypt) gpa.free(text);
+
+    var result_len: usize = 0;
+    const out = if (is_hash) blk: {
+        const o = doHash(f, text) catch |err| {
+            setStatus(f, false, tr("Hash failed."));
             _ = QMessageBox.Information(main_win, tr("Crypto Error"), @errorName(err));
             return;
         };
+        result_len = o.len;
+        break :blk o;
+    } else doCipher(f, text, mode, &result_len) catch |err| {
+        const msg = if (err == error.NoPasswordProvided)
+            tr("Enter a password for the selected algorithm.")
+        else
+            tr("Invalid key or input for the selected algorithm.");
+        setStatus(f, false, msg);
+        _ = QMessageBox.Information(main_win, tr("Crypto Error"), @errorName(err));
+        return;
+    };
     defer gpa.free(out);
 
-    f.output.SetPlainText(out);
+    const display: []u8 = if (is_des and mode == .encrypt) blk: {
+        break :blk encodeDesOutput(f, out[0..result_len]) catch {
+            setStatus(f, false, tr("Failed to encode output."));
+            return;
+        };
+    } else out[0..result_len];
+    defer if (is_des and mode == .encrypt) gpa.free(display);
+
+    f.output.SetPlainText(display);
     updateFormCounts(f);
     setStatus(f, true, if (is_hash) tr("Hashed.") else if (mode == .encrypt) tr("Encrypted.") else tr("Decrypted."));
 }
@@ -1037,13 +1130,20 @@ fn doHash(f: *Form, text: []const u8) ![]u8 {
     return modern.hash(gpa, algo, text);
 }
 
-fn doCipher(f: *Form, text: []const u8, mode: Mode) ![]u8 {
+fn doCipher(f: *Form, text: []const u8, mode: Mode, out_len: *usize) ![]u8 {
     if (f.category.CurrentIndex() == 1) {
-        return doModern(f, text, mode);
+        const out = try doModern(f, text, mode);
+        out_len.* = out.len;
+        return out;
     }
 
-    const buf = try gpa.alloc(u8, text.len);
+    const is_des = f.combo.CurrentIndex() == 11;
+    const cap = if (is_des and mode == .encrypt) blk: {
+        break :blk if (text.len % 8 == 0) text.len + 8 else text.len + (8 - text.len % 8);
+    } else text.len;
+    const buf = try gpa.alloc(u8, cap);
     errdefer gpa.free(buf);
+    out_len.* = text.len;
 
     switch (f.combo.CurrentIndex()) {
         0 => {
@@ -1134,6 +1234,22 @@ fn doCipher(f: *Form, text: []const u8, mode: Mode) ![]u8 {
             switch (mode) {
                 .encrypt => try c.encrypt(text, buf),
                 .decrypt => try c.decrypt(text, buf),
+            }
+        },
+        11 => {
+            const keyword = f.keyword_edit.Text(gpa);
+            defer gpa.free(keyword);
+            const c = try Cipher(DesEcb).init(.{keyword});
+            switch (mode) {
+                .encrypt => {
+                    try c.encrypt(text, buf);
+                    out_len.* = if (text.len % 8 == 0) text.len + 8 else text.len + (8 - text.len % 8);
+                },
+                .decrypt => {
+                    try c.decrypt(text, buf);
+                    const pad: usize = buf[text.len - 1];
+                    out_len.* = text.len - pad;
+                },
             }
         },
         else => unreachable,

@@ -64,7 +64,7 @@
         <translation>Özellikler</translation>
     </message>
     <message>
-        <source>•  Eleven classical ciphers: Caesar, Multiplicative, Affine, Autokey, Vigenere, Zigzag, Atbash, Rot13, Beaufort, Columnar, Bifid</source>
+        <source>•  Twelve classical ciphers: Caesar, Multiplicative, Affine, Autokey, Vigenere, Zigzag, Atbash, Rot13, Beaufort, Columnar, Bifid, DES</source>
         <translation>•  On bir klasik şifre: Sezar, çarpımsal, afin, otomatik anahtar, Vigenère, zigzag, Atbash, ROT-13, Beaufort, sütunlu yer değiştirme, Bifid</translation>
     </message>
     <message>

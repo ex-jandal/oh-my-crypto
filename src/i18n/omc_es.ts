@@ -64,7 +64,7 @@
         <translation>Características</translation>
     </message>
     <message>
-        <source>•  Eleven classical ciphers: Caesar, Multiplicative, Affine, Autokey, Vigenere, Zigzag, Atbash, Rot13, Beaufort, Columnar, Bifid</source>
+        <source>•  Twelve classical ciphers: Caesar, Multiplicative, Affine, Autokey, Vigenere, Zigzag, Atbash, Rot13, Beaufort, Columnar, Bifid, DES</source>
         <translation>•  Once cifrados clásicos: César, multiplicativo, afín, clave automática, Vigenère, zigzag, Atbash, ROT-13, Beaufort, transposición columnar, Bifid</translation>
     </message>
     <message>

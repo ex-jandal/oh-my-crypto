@@ -68,7 +68,7 @@
         <translation>المميزات</translation>
     </message>
     <message>
-        <source>•  Eleven classical ciphers: Caesar, Multiplicative, Affine, Autokey, Vigenere, Zigzag, Atbash, Rot13, Beaufort, Columnar, Bifid</source>
+        <source>•  Twelve classical ciphers: Caesar, Multiplicative, Affine, Autokey, Vigenere, Zigzag, Atbash, Rot13, Beaufort, Columnar, Bifid, DES</source>
         <translation>•  أحد عشر تشفيرًا كلاسيكيًا: قيصر، المضاعف، الأفيني، المفتاح الذاتي، فيجينير، المتعرج، أتبش، روت-13، بوفور، العمودي، الثنائي</translation>
     </message>
     <message>

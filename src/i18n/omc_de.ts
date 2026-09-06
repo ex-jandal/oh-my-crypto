@@ -64,7 +64,7 @@
         <translation>Funktionen</translation>
     </message>
     <message>
-        <source>•  Eleven classical ciphers: Caesar, Multiplicative, Affine, Autokey, Vigenere, Zigzag, Atbash, Rot13, Beaufort, Columnar, Bifid</source>
+        <source>•  Twelve classical ciphers: Caesar, Multiplicative, Affine, Autokey, Vigenere, Zigzag, Atbash, Rot13, Beaufort, Columnar, Bifid, DES</source>
         <translation>•  Elf klassische Chiffren: Caesar, multiplikativ, affin, Autokey, Vigenère, Zickzack, Atbash, ROT-13, Beaufort, Spaltentransposition, Bifid</translation>
     </message>
     <message>
